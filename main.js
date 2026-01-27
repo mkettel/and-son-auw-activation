@@ -178,6 +178,43 @@ gltfLoader.load(
       window.floorMaterial = floorMesh.material;
     }
 
+    // ============ DECAL (AUW Logo) on DJ Booth ============
+    const boothMesh = model.getObjectByName('BOOTH_DJ');
+    if (boothMesh) {
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.load('/textures/test-decal.png', (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+
+        const decalGeometry = new THREE.PlaneGeometry(1, 1);
+        const decalMaterial = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        });
+
+        const decal = new THREE.Mesh(decalGeometry, decalMaterial);
+
+        // Get booth position and place decal on front face
+        const box = new THREE.Box3().setFromObject(boothMesh);
+        const center = box.getCenter(new THREE.Vector3());
+
+        decal.position.copy(center);
+        decal.position.z += 1.15; // Offset slightly in front
+        decal.rotation.y = 0.6; // Match model rotation
+        decal.position.x += 2.7;
+        decal.position.y += -2.0;
+        decal.scale.set(0.6, 0.6, 1);
+        scene.add(decal);
+
+        window.decal = decal;
+        window.boothMesh = boothMesh;
+        console.log('Decal placed on BOOTH_DJ at:', center);
+        console.log('Adjust with: decal.position.set(x, y, z)');
+        console.log('Resize with: decal.scale.set(w, h, 1)');
+      });
+    }
+
     // Map and log all meshes
     const meshes = {};
     model.traverse((child) => {
@@ -233,7 +270,7 @@ gltfLoader.load(
 
     // Right sconce
     const sconceRight = new THREE.PointLight(whiteColor, 5, 10, 1);
-    sconceRight.position.set(13, 6.5, -6.9);
+    sconceRight.position.set(14.3, 6.5, -6.9);
     scene.add(sconceRight);
 
     // --- ROOM AREA LIGHTS (RectAreaLight - warm) ---
