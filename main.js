@@ -345,15 +345,20 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Animation loop
+// Animation loop with deltaTime for consistent speed
+const clock = new THREE.Clock();
+
 function animate() {
   requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+
   controls.update();
 
-  // Lerp ambient light intensity for smooth light switch
+  // Lerp ambient light intensity for smooth light switch (frame-rate independent)
   if (window.lightSwitch?.light) {
     const ls = window.lightSwitch;
-    ls.light.intensity += (ls.target - ls.light.intensity) * ls.speed;
+    const lerpFactor = 1 - Math.pow(0.01, delta); // Smooth ~3 second transition
+    ls.light.intensity += (ls.target - ls.light.intensity) * lerpFactor;
   }
 
   renderer.render(scene, camera);
