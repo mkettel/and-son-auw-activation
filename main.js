@@ -5,9 +5,14 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { RectAreaLightHelper } from 'three/addons/helpers/RectAreaLightHelper.js';
+import Stats from 'three/addons/libs/stats.module.js';
 
 // Initialize RectAreaLight support
 RectAreaLightUniformsLib.init();
+
+// Performance monitor
+const stats = new Stats();
+document.body.appendChild(stats.dom);
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -198,10 +203,27 @@ gltfLoader.load(
     const warmColor = 0xFFB770;  // Warm orange for lamp and area lights
     const whiteColor = 0xFFFFFF; // White for sconces
 
-    // --- LAMP (Point Light) ---
-    const lampLight = new THREE.PointLight(warmColor, 7, 20, 2);
-    lampLight.position.set(-2.7, 4.12, 8.75);
-    scene.add(lampLight);
+    // --- LAMP (Point Light - diffuse glow through shade) ---
+    const lampPointLight = new THREE.PointLight(warmColor, 3, 12, 2);
+    lampPointLight.position.set(-2.7, 4.0, 8.75);
+    scene.add(lampPointLight);
+    window.lampPointLight = lampPointLight;
+
+    // --- LAMP (Spotlight - pointing up) ---
+    const lampLightUp = new THREE.SpotLight(warmColor, 15, 15, Math.PI / 4, 1, 1);
+    lampLightUp.position.set(-2.7, 4.0, 8.75);
+    lampLightUp.target.position.set(-2.7, 10, 8.75);
+    scene.add(lampLightUp);
+    scene.add(lampLightUp.target);
+    window.lampLightUp = lampLightUp;
+
+    // --- LAMP (Spotlight - pointing down) ---
+    const lampLightDown = new THREE.SpotLight(warmColor, 15, 10, Math.PI / 3, 1, 1);
+    lampLightDown.position.set(-2.7, 4.0, 8.75);
+    lampLightDown.target.position.set(-2.7, 0, 8.75);
+    scene.add(lampLightDown);
+    scene.add(lampLightDown.target);
+    window.lampLightDown = lampLightDown;
 
     // --- SCONCES (Point Lights - white) ---
     // Left sconce
@@ -239,19 +261,38 @@ gltfLoader.load(
     scene.add(ambientLight);
 
     // ============ LIGHT SWITCH (Press 'L') ============
-    // Store in global object for animation loop access
+    // Room lights (on when bright) vs practical lights (on when dark)
     window.lightSwitch = {
-      light: ambientLight,
-      on: true,
-      target: 2.5,
-      speed: 0.03 // Adjust for faster/slower transition
+      on: true, // room lights on
+      roomLights: [
+        { light: ambientLight, onIntensity: 2.1, current: 2.1, target: 2.1 },
+      ],
+      practicalLights: [
+        // These turn ON when room lights are OFF
+        { light: lampPointLight, onIntensity: 3, current: 0, target: 0 },
+        { light: lampLightUp, onIntensity: 15, current: 0, target: 0 },
+        { light: lampLightDown, onIntensity: 15, current: 0, target: 0 },
+        { light: sconceLeft, onIntensity: 5, current: 0, target: 0 },
+        { light: sconceRight, onIntensity: 5, current: 0, target: 0 },
+      ]
     };
+
+    // Start with practical lights off
+    window.lightSwitch.practicalLights.forEach(l => l.light.intensity = 0);
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'l' || e.key === 'L') {
         window.lightSwitch.on = !window.lightSwitch.on;
-        window.lightSwitch.target = window.lightSwitch.on ? 2.5 : 0;
-        console.log('Lights:', window.lightSwitch.on ? 'ON' : 'OFF');
+        const on = window.lightSwitch.on;
+        // Room lights: on when bright
+        window.lightSwitch.roomLights.forEach(l => {
+          l.target = on ? l.onIntensity : 0;
+        });
+        // Practical lights: on when dark (opposite)
+        window.lightSwitch.practicalLights.forEach(l => {
+          l.target = on ? 0 : l.onIntensity;
+        });
+        console.log('Room lights:', on ? 'ON' : 'OFF');
       }
     });
 
@@ -261,9 +302,17 @@ gltfLoader.load(
     // Press 'H' to toggle helpers
     const helpers = [];
 
-    const lampHelper = new THREE.PointLightHelper(lampLight, 0.5);
-    scene.add(lampHelper);
-    helpers.push(lampHelper);
+    const lampPointHelper = new THREE.PointLightHelper(lampPointLight, 0.3);
+    scene.add(lampPointHelper);
+    helpers.push(lampPointHelper);
+
+    const lampHelperUp = new THREE.SpotLightHelper(lampLightUp);
+    scene.add(lampHelperUp);
+    helpers.push(lampHelperUp);
+
+    const lampHelperDown = new THREE.SpotLightHelper(lampLightDown);
+    scene.add(lampHelperDown);
+    helpers.push(lampHelperDown);
 
     const sconceLeftHelper = new THREE.PointLightHelper(sconceLeft, 0.3);
     scene.add(sconceLeftHelper);
@@ -293,29 +342,6 @@ gltfLoader.load(
       if (e.key === 'h' || e.key === 'H') {
         helpers.forEach(helper => helper.visible = !helper.visible);
         console.log('Helpers:', helpers[0].visible ? 'ON' : 'OFF');
-      }
-    });
-
-    // ============ MESH HOVER LOGGING ============
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    let lastHovered = null;
-
-    window.addEventListener('mousemove', (e) => {
-      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObject(model, true);
-
-      if (intersects.length > 0) {
-        const mesh = intersects[0].object;
-        if (mesh.name !== lastHovered) {
-          lastHovered = mesh.name;
-          console.log('Hovered:', mesh.name);
-          window.hoveredMesh = mesh;
-          window.hoveredMaterial = mesh.material;
-        }
       }
     });
 
@@ -352,13 +378,18 @@ function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
 
+  stats.update();
   controls.update();
 
-  // Lerp ambient light intensity for smooth light switch (frame-rate independent)
-  if (window.lightSwitch?.light) {
-    const ls = window.lightSwitch;
+  // Lerp all lights for smooth light switch (frame-rate independent)
+  if (window.lightSwitch) {
     const lerpFactor = 1 - Math.pow(0.01, delta); // Smooth ~3 second transition
-    ls.light.intensity += (ls.target - ls.light.intensity) * lerpFactor;
+    const lerpLight = (l) => {
+      l.current += (l.target - l.current) * lerpFactor;
+      l.light.intensity = l.current;
+    };
+    window.lightSwitch.roomLights?.forEach(lerpLight);
+    window.lightSwitch.practicalLights?.forEach(lerpLight);
   }
 
   renderer.render(scene, camera);
