@@ -164,6 +164,14 @@ gltfLoader.load(
       logoMesh.material.envMapIntensity = 0.9;
     }
 
+    // Floor (ROOM_2) - warm it up to match Blender
+    const floorMesh = model.getObjectByName('ROOM_2');
+    if (floorMesh?.material) {
+      floorMesh.material.color.set(0xD4BC94); // Warmer golden wood (lighter)
+      floorMesh.material.roughness = 0.7;
+      floorMesh.material.envMapIntensity = 0.3;
+      window.floorMaterial = floorMesh.material;
+    }
 
     // Map and log all meshes
     const meshes = {};
@@ -277,6 +285,9 @@ gltfLoader.load(
     scene.add(areaTopHelper);
     helpers.push(areaTopHelper);
 
+    // Hide helpers by default
+    helpers.forEach(helper => helper.visible = false);
+
     // Toggle helpers with 'H' key
     window.addEventListener('keydown', (e) => {
       if (e.key === 'h' || e.key === 'H') {
@@ -301,7 +312,7 @@ gltfLoader.load(
         const mesh = intersects[0].object;
         if (mesh.name !== lastHovered) {
           lastHovered = mesh.name;
-          console.log('Hovered:', mesh.name, mesh.material);
+          console.log('Hovered:', mesh.name);
           window.hoveredMesh = mesh;
           window.hoveredMaterial = mesh.material;
         }
