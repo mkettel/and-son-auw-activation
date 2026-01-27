@@ -97,7 +97,7 @@ gltfLoader.load(
     // Set envMapIntensity on all materials (subtle reflections only)
     model.traverse((child) => {
       if (child.isMesh && child.material) {
-        child.material.envMapIntensity = 0.2;
+        child.material.envMapIntensity = 0.9;
       }
     });
 
@@ -164,9 +164,9 @@ gltfLoader.load(
     const logoMesh = model.getObjectByName('LOGO');
     if (logoMesh?.material) {
       logoMesh.material.color.set(0xffffff);
-      logoMesh.material.roughness = 0.7;
+      logoMesh.material.roughness = 0.5;
       logoMesh.material.metalness = 0.1;
-      logoMesh.material.envMapIntensity = 0.9;
+      logoMesh.material.envMapIntensity = 1.9;
     }
 
     // Floor (ROOM_2) - warm it up to match Blender
@@ -174,9 +174,19 @@ gltfLoader.load(
     if (floorMesh?.material) {
       floorMesh.material.color.set(0xD4BC94); // Warmer golden wood (lighter)
       floorMesh.material.roughness = 0.7;
-      floorMesh.material.envMapIntensity = 0.3;
+      floorMesh.material.envMapIntensity = 0.9;
       window.floorMaterial = floorMesh.material;
     }
+
+    // Rug Materials
+    const rugMesh = model.getObjectByName('Shaggy_carpet');
+    if (rugMesh?.material) {
+      rugMesh.material.color.set(0xD4BC94);
+      rugMesh.material.roughness = 0.7;
+      rugMesh.material.envMapIntensity = 0.2;
+    }
+   
+
 
     // ============ DECAL (AUW Logo) on DJ Booth ============
     const boothMesh = model.getObjectByName('BOOTH_DJ');
@@ -298,6 +308,20 @@ gltfLoader.load(
     scene.add(ambientLight);
 
     // ============ LIGHT SWITCH (Press 'L') ============
+    // Collect all materials for envMapIntensity control
+    const allMaterials = [];
+    model.traverse((child) => {
+      if (child.isMesh && child.material && child.material.envMapIntensity !== undefined) {
+        allMaterials.push({
+          material: child.material,
+          onIntensity: child.material.envMapIntensity, // current value as "on" value
+          offIntensity: 0.25, // dim when lights off
+          current: child.material.envMapIntensity,
+          target: child.material.envMapIntensity
+        });
+      }
+    });
+
     // Room lights (on when bright) vs practical lights (on when dark)
     window.lightSwitch = {
       on: true, // room lights on
@@ -311,7 +335,8 @@ gltfLoader.load(
         { light: lampLightDown, onIntensity: 15, current: 0, target: 0 },
         { light: sconceLeft, onIntensity: 5, current: 0, target: 0 },
         { light: sconceRight, onIntensity: 5, current: 0, target: 0 },
-      ]
+      ],
+      materials: allMaterials
     };
 
     // Start with practical lights off
@@ -328,6 +353,10 @@ gltfLoader.load(
         // Practical lights: on when dark (opposite)
         window.lightSwitch.practicalLights.forEach(l => {
           l.target = on ? 0 : l.onIntensity;
+        });
+        // Materials envMapIntensity: high when bright, low when dark
+        window.lightSwitch.materials.forEach(m => {
+          m.target = on ? m.onIntensity : m.offIntensity;
         });
         console.log('Room lights:', on ? 'ON' : 'OFF');
       }
@@ -425,8 +454,13 @@ function animate() {
       l.current += (l.target - l.current) * lerpFactor;
       l.light.intensity = l.current;
     };
+    const lerpMaterial = (m) => {
+      m.current += (m.target - m.current) * lerpFactor;
+      m.material.envMapIntensity = m.current;
+    };
     window.lightSwitch.roomLights?.forEach(lerpLight);
     window.lightSwitch.practicalLights?.forEach(lerpLight);
+    window.lightSwitch.materials?.forEach(lerpMaterial);
   }
 
   renderer.render(scene, camera);
