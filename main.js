@@ -166,7 +166,9 @@ gltfLoader.load(
       logoMesh.material.color.set(0xffffff);
       logoMesh.material.roughness = 0.5;
       logoMesh.material.metalness = 0.1;
-      logoMesh.material.envMapIntensity = 1.9;
+      logoMesh.material.envMapIntensity = 1.7;
+      logoMesh.material.emissive.set(0xffffff);
+      logoMesh.material.emissiveIntensity = 0.8
     }
 
     // Floor (ROOM_2) - warm it up to match Blender
