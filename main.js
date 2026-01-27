@@ -92,7 +92,7 @@ gltfLoader.load(
     // Set envMapIntensity on all materials (subtle reflections only)
     model.traverse((child) => {
       if (child.isMesh && child.material) {
-        child.material.envMapIntensity = 0.1;
+        child.material.envMapIntensity = 0.2;
       }
     });
 
@@ -221,14 +221,31 @@ gltfLoader.load(
     scene.add(areaRight);
 
     // Top area light
-    const areaTop = new THREE.RectAreaLight(warmColor, 7, 8, 8);
+    const areaTop = new THREE.RectAreaLight(warmColor, 9, 6, 6);
     areaTop.position.set(14, 10, 3);
-    areaTop.lookAt(6, -1, 3);
+    areaTop.lookAt(6, -1, 2);
     scene.add(areaTop);
 
     // small ambient light
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
     scene.add(ambientLight);
+
+    // ============ LIGHT SWITCH (Press 'L') ============
+    // Store in global object for animation loop access
+    window.lightSwitch = {
+      light: ambientLight,
+      on: true,
+      target: 2.5,
+      speed: 0.03 // Adjust for faster/slower transition
+    };
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'l' || e.key === 'L') {
+        window.lightSwitch.on = !window.lightSwitch.on;
+        window.lightSwitch.target = window.lightSwitch.on ? 2.5 : 0;
+        console.log('Lights:', window.lightSwitch.on ? 'ON' : 'OFF');
+      }
+    });
 
     console.log('Lighting setup complete');
 
@@ -321,6 +338,13 @@ window.addEventListener('resize', () => {
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+
+  // Lerp ambient light intensity for smooth light switch
+  if (window.lightSwitch?.light) {
+    const ls = window.lightSwitch;
+    ls.light.intensity += (ls.target - ls.light.intensity) * ls.speed;
+  }
+
   renderer.render(scene, camera);
 }
 
