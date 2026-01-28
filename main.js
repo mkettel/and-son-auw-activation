@@ -287,17 +287,17 @@ gltfLoader.load(
 
     // --- ROOM AREA LIGHTS (RectAreaLight - warm) ---
     // Left area light
-    const areaLeft = new THREE.RectAreaLight(warmColor, 6, 6, 6);
-    areaLeft.position.set(4.5, 5, 18);
-    areaLeft.lookAt(3, 3, 1);
-    areaLeft.power = 1000;
-    scene.add(areaLeft);
+    // const areaLeft = new THREE.RectAreaLight(warmColor, 6, 6, 6);
+    // areaLeft.position.set(4.5, 5, 18);
+    // areaLeft.lookAt(3, 3, 1);
+    // areaLeft.power = 1000;
+    // scene.add(areaLeft);
 
     // Right area light (angled)
-    const areaRight = new THREE.RectAreaLight(warmColor, 6, 6, 4);
-    areaRight.position.set(14, 5, 10);
-    areaRight.lookAt(3, 2, 1);
-    scene.add(areaRight);
+    // const areaRight = new THREE.RectAreaLight(warmColor, 6, 6, 4);
+    // areaRight.position.set(14, 5, 10);
+    // areaRight.lookAt(3, 2, 1);
+    // scene.add(areaRight);
 
     // Top area light
     const areaTop = new THREE.RectAreaLight(warmColor, 9, 6, 6);
@@ -328,7 +328,7 @@ gltfLoader.load(
     window.lightSwitch = {
       on: true, // room lights on
       roomLights: [
-        { light: ambientLight, onIntensity: 2.1, current: 2.1, target: 2.1 },
+        { light: ambientLight, onIntensity: 2.8, current: 2.8, target: 2.8 },
       ],
       practicalLights: [
         // These turn ON when room lights are OFF
@@ -390,13 +390,13 @@ gltfLoader.load(
     scene.add(sconceRightHelper);
     helpers.push(sconceRightHelper);
 
-    const areaLeftHelper = new RectAreaLightHelper(areaLeft);
-    scene.add(areaLeftHelper);
-    helpers.push(areaLeftHelper);
+    // const areaLeftHelper = new RectAreaLightHelper(areaLeft);
+    // scene.add(areaLeftHelper);
+    // helpers.push(areaLeftHelper);
 
-    const areaRightHelper = new RectAreaLightHelper(areaRight);
-    scene.add(areaRightHelper);
-    helpers.push(areaRightHelper);
+    // const areaRightHelper = new RectAreaLightHelper(areaRight);
+    // scene.add(areaRightHelper);
+    // helpers.push(areaRightHelper);
 
     const areaTopHelper = new RectAreaLightHelper(areaTop);
     scene.add(areaTopHelper);
