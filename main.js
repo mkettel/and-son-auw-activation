@@ -295,7 +295,7 @@ gltfLoader.load(
     const logoMesh = model.getObjectByName('LOGO');
     if (logoMesh?.material) {
       logoMesh.material.color.set(0xffffff);
-      logoMesh.material.roughness = 0.5;
+      logoMesh.material.roughness = 0.8;
       logoMesh.material.metalness = 0.1;
       logoMesh.material.envMapIntensity = 1.7;
       logoMesh.material.emissive.set(0xffffff);
@@ -306,22 +306,22 @@ gltfLoader.load(
     const floorMesh = model.getObjectByName('ROOM_2');
     if (floorMesh?.material) {
       floorMesh.material.color.set(0xD4BC94); // Warmer golden wood (lighter)
-      floorMesh.material.roughness = 0.7;
-      floorMesh.material.envMapIntensity = 0.9;
+      floorMesh.material.roughness = 0.8;
+      floorMesh.material.envMapIntensity = 0.99;
       window.floorMaterial = floorMesh.material;
     }
 
     // Rug Materials - matte fabric look
     const rugMesh = model.getObjectByName('Shaggy_carpet');
     if (rugMesh?.material) {
-      // rugMesh.material.roughness = 0.3;
-      // rugMesh.material.metalness = 0.3;
-      // rugMesh.material.envMapIntensity = 0.05;
+      rugMesh.material.roughness = 0.6;
+      rugMesh.material.metalness = 0.0;
+      rugMesh.material.envMapIntensity = 1;
       // rugMesh.material.metalnessMap = null;
       // rugMesh.material.roughnessMap = null;
       // Fix sheen and specular
       rugMesh.material.sheen = 0; // Disable sheen
-      rugMesh.material.specularIntensity = 0.2; // No specular
+      rugMesh.material.specularIntensity = 0.8; // No specular
       rugMesh.material.needsUpdate = true;
       window.rugMaterial = rugMesh.material;
     }
@@ -448,9 +448,9 @@ gltfLoader.load(
     scene.add(ambientLight);
 
     // Directional light (simulates sunlight through window)
-    const sunLight = new THREE.DirectionalLight(0xFFB770, 5.5); // Soft warm sunlight
+    const sunLight = new THREE.DirectionalLight(0xFFB770, 6.5); // Soft warm sunlight
     sunLight.position.set(9, 7, 20); // Coming from window direction (left side)
-    sunLight.target.position.set(0, 0, 0);
+    sunLight.target.position.set(0, 1, 0);
     scene.add(sunLight.target);
     sunLight.castShadow = true;
 
