@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { RectAreaLightHelper } from 'three/addons/helpers/RectAreaLightHelper.js';
@@ -36,6 +37,8 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.35;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = false;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Soft shadows
 
 // HDRI Environment (for subtle reflections)
 const exrLoader = new EXRLoader();
@@ -48,18 +51,48 @@ exrLoader.load(
   }
 );
 
+// Camera mode config: 'mouse' or 'orbit'
+const cameraConfig = {
+  mode: 'mouse', // 'mouse' = mouse-follow, 'orbit' = OrbitControls
+};
+window.cameraConfig = cameraConfig;
+
 // Mouse-follow camera settings
 const mouseTarget = { x: 0, y: 0 };
 const mouseCurrent = { x: 0, y: 0 };
 const cameraBasePosition = new THREE.Vector3();
-const cameraLookCenter = new THREE.Vector3(); // Center point of the scene
-const cameraLookCurrent = new THREE.Vector3(); // Current lerped look-at position
-const cameraLookRange = { x: 4, y: 2.5 }; // How far the look-at point moves based on mouse
+const cameraLookCenter = new THREE.Vector3();
+const cameraLookCurrent = new THREE.Vector3();
+const cameraLookRange = { x: 4, y: 2.5 };
 
 // Track mouse position (normalized -1 to 1)
 window.addEventListener('mousemove', (e) => {
   mouseTarget.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouseTarget.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+
+// OrbitControls setup
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.minDistance = 1;
+controls.maxDistance = 100;
+controls.enabled = false; // Start with mouse mode
+
+// Toggle camera mode with 'C' key
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'c' || e.key === 'C') {
+    cameraConfig.mode = cameraConfig.mode === 'mouse' ? 'orbit' : 'mouse';
+    controls.enabled = cameraConfig.mode === 'orbit';
+
+    // Reset orbit controls target when switching to orbit mode
+    if (cameraConfig.mode === 'orbit' && cameraLookCenter.length() > 0) {
+      controls.target.copy(cameraLookCenter);
+      controls.update();
+    }
+
+    console.log('Camera mode:', cameraConfig.mode);
+  }
 });
 
 // Loading manager
@@ -101,10 +134,12 @@ gltfLoader.load(
     cameraLookCenter.copy(center);
     cameraLookCurrent.copy(center);
 
-    // Set envMapIntensity on all materials (subtle reflections only)
+    // Set envMapIntensity and enable shadows on all meshes
     model.traverse((child) => {
       if (child.isMesh && child.material) {
         child.material.envMapIntensity = 0.9;
+        child.castShadow = true;
+        child.receiveShadow = true;
       }
     });
 
@@ -131,11 +166,13 @@ gltfLoader.load(
       window.cactusModel = cactusModel;
       console.log('Cactus loaded. Adjust position with: cactusModel.position.set(x, y, z)');
 
-      // Log cactus meshes
+      // Log cactus meshes and enable shadows
       const cactusMeshes = [];
       cactusModel.traverse((child) => {
         if (child.isMesh) {
           cactusMeshes.push({ name: child.name, material: child.material });
+          child.castShadow = true;
+          child.receiveShadow = true;
         }
       });
       window.cactusMaterials = cactusMeshes;
@@ -187,12 +224,19 @@ gltfLoader.load(
       window.floorMaterial = floorMesh.material;
     }
 
-    // Rug Materials
+    // Rug Materials - matte fabric look
     const rugMesh = model.getObjectByName('Shaggy_carpet');
     if (rugMesh?.material) {
-      rugMesh.material.color.set(0xD4BC94);
-      rugMesh.material.roughness = 0.7;
-      rugMesh.material.envMapIntensity = 0.2;
+      // rugMesh.material.roughness = 0.3;
+      // rugMesh.material.metalness = 0.3;
+      // rugMesh.material.envMapIntensity = 0.05;
+      // rugMesh.material.metalnessMap = null;
+      // rugMesh.material.roughnessMap = null;
+      // Fix sheen and specular
+      rugMesh.material.sheen = 0; // Disable sheen
+      rugMesh.material.specularIntensity = 0.2; // No specular
+      rugMesh.material.needsUpdate = true;
+      window.rugMaterial = rugMesh.material;
     }
    
 
@@ -307,14 +351,35 @@ gltfLoader.load(
     // scene.add(areaRight);
 
     // Top area light
-    const areaTop = new THREE.RectAreaLight(warmColor, 9, 6, 6);
-    areaTop.position.set(14, 10, 3);
-    areaTop.lookAt(6, -1, 2);
-    scene.add(areaTop);
+    // const areaTop = new THREE.RectAreaLight(warmColor, 6, 6, 6);
+    // areaTop.position.set(14, 10, 0);
+    // areaTop.lookAt(6, 10, 2);
+    // scene.add(areaTop);
 
-    // small ambient light
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
+    // Ambient light (lower for more depth)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
+
+    // Directional light (simulates sunlight through window)
+    const sunLight = new THREE.DirectionalLight(0xfff5e6, 7.5); // Warm white
+    sunLight.position.set(8, 8, 20); // Coming from window direction (left side)
+    sunLight.target.position.set(0, 6, 0);
+    scene.add(sunLight.target);
+    sunLight.castShadow = true;
+
+    // Shadow settings
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 40;
+    sunLight.shadow.camera.left = -20;
+    sunLight.shadow.camera.right = 20;
+    sunLight.shadow.camera.top = 20;
+    sunLight.shadow.camera.bottom = -20;
+    sunLight.shadow.bias = -0.0001; // Reduces shadow acne
+
+    scene.add(sunLight);
+    window.sunLight = sunLight;
 
     // ============ LIGHT SWITCH (Press 'L') ============
     // Collect all materials for envMapIntensity control
@@ -324,7 +389,7 @@ gltfLoader.load(
         allMaterials.push({
           material: child.material,
           onIntensity: child.material.envMapIntensity, // current value as "on" value
-          offIntensity: 0.25, // dim when lights off
+          offIntensity: 0.55, // dim when lights off
           current: child.material.envMapIntensity,
           target: child.material.envMapIntensity
         });
@@ -335,7 +400,8 @@ gltfLoader.load(
     window.lightSwitch = {
       on: true, // room lights on
       roomLights: [
-        { light: ambientLight, onIntensity: 2.8, current: 2.8, target: 2.8 },
+        { light: ambientLight, onIntensity: 0.5, current: 0.5, target: 0.5 },
+        { light: sunLight, onIntensity: 2.5, current: 2.5, target: 2.5 },
       ],
       practicalLights: [
         // These turn ON when room lights are OFF
@@ -405,9 +471,18 @@ gltfLoader.load(
     // scene.add(areaRightHelper);
     // helpers.push(areaRightHelper);
 
-    const areaTopHelper = new RectAreaLightHelper(areaTop);
-    scene.add(areaTopHelper);
-    helpers.push(areaTopHelper);
+    // const areaTopHelper = new RectAreaLightHelper(areaTop);
+    // scene.add(areaTopHelper);
+    // helpers.push(areaTopHelper);
+
+    const sunHelper = new THREE.DirectionalLightHelper(sunLight, 2);
+    scene.add(sunHelper);
+    helpers.push(sunHelper);
+
+    // Shadow camera helper (shows shadow frustum bounds)
+    const shadowCameraHelper = new THREE.CameraHelper(sunLight.shadow.camera);
+    scene.add(shadowCameraHelper);
+    helpers.push(shadowCameraHelper);
 
     // Hide helpers by default
     helpers.forEach(helper => helper.visible = false);
@@ -455,23 +530,25 @@ function animate() {
 
   stats.update();
 
-  // Smooth mouse-follow camera - look at where mouse is pointing
-  const lerpSpeed = 1 - Math.pow(0.001, delta); // More responsive lerp factor
-  mouseCurrent.x += (mouseTarget.x - mouseCurrent.x) * lerpSpeed;
-  mouseCurrent.y += (mouseTarget.y - mouseCurrent.y) * lerpSpeed;
+  // Camera mode handling
+  if (cameraConfig.mode === 'mouse') {
+    // Smooth mouse-follow camera - look at where mouse is pointing
+    const lerpSpeed = 1 - Math.pow(0.001, delta);
+    mouseCurrent.x += (mouseTarget.x - mouseCurrent.x) * lerpSpeed;
+    mouseCurrent.y += (mouseTarget.y - mouseCurrent.y) * lerpSpeed;
 
-  // Calculate target look-at position based on mouse
-  if (cameraLookCenter.length() > 0) {
-    // Target look position moves based on mouse
-    const targetLookX = cameraLookCenter.x + mouseCurrent.x * cameraLookRange.x;
-    const targetLookY = cameraLookCenter.y + mouseCurrent.y * cameraLookRange.y;
+    if (cameraLookCenter.length() > 0) {
+      const targetLookX = cameraLookCenter.x + mouseCurrent.x * cameraLookRange.x;
+      const targetLookY = cameraLookCenter.y + mouseCurrent.y * cameraLookRange.y;
 
-    // Lerp the current look position toward target
-    cameraLookCurrent.x += (targetLookX - cameraLookCurrent.x) * lerpSpeed;
-    cameraLookCurrent.y += (targetLookY - cameraLookCurrent.y) * lerpSpeed;
+      cameraLookCurrent.x += (targetLookX - cameraLookCurrent.x) * lerpSpeed;
+      cameraLookCurrent.y += (targetLookY - cameraLookCurrent.y) * lerpSpeed;
 
-    // Camera looks at the lerped position
-    camera.lookAt(cameraLookCurrent);
+      camera.lookAt(cameraLookCurrent);
+    }
+  } else {
+    // Orbit controls mode
+    controls.update();
   }
 
   // Lerp all lights for smooth light switch (frame-rate independent)
