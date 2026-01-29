@@ -7,6 +7,91 @@ import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUnifo
 import { RectAreaLightHelper } from 'three/addons/helpers/RectAreaLightHelper.js';
 import Stats from 'three/addons/libs/stats.module.js';
 
+// ============ PCSS SOFT SHADOWS (like Drei's SoftShadows) ============
+const pcssConfig = {
+  size: 25,      // Light size - larger = softer shadows
+  samples: 6,   // Quality - more samples = smoother but slower
+  focus: 0       // Focus point - 0 = auto
+};
+window.pcssConfig = pcssConfig;
+
+// Patch Three.js shadow shaders for PCSS
+let originalShaderChunk = THREE.ShaderChunk.shadowmap_pars_fragment;
+
+const pcssGetShadow = `
+#define PCSS_SAMPLES ${pcssConfig.samples}
+#define PCSS_SIZE ${pcssConfig.size.toFixed(1)}
+
+float PCSS_rand(vec2 co) {
+  return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+vec2 PCSS_poissonDisk[16];
+
+void PCSS_initPoissonSamples(vec2 seed) {
+  float angle = PCSS_rand(seed) * 6.283185307179586;
+  float radius = 1.0 / float(PCSS_SAMPLES);
+  for (int i = 0; i < 16; i++) {
+    float r = sqrt(float(i) + 0.5) * radius;
+    PCSS_poissonDisk[i] = vec2(cos(angle), sin(angle)) * r;
+    angle += 2.399963229728653;
+  }
+}
+
+float PCSS_penumbraSize(float zReceiver, float zBlocker) {
+  return (zReceiver - zBlocker) / zBlocker * PCSS_SIZE;
+}
+
+float PCSS_findBlocker(sampler2D shadowMap, vec2 uv, float zReceiver, float size) {
+  float blockerSum = 0.0;
+  float numBlockers = 0.0;
+  for (int i = 0; i < PCSS_SAMPLES; i++) {
+    vec2 offset = PCSS_poissonDisk[i % 16] * size / 2048.0;
+    float shadowMapDepth = unpackRGBAToDepth(texture2D(shadowMap, uv + offset));
+    if (shadowMapDepth < zReceiver) {
+      blockerSum += shadowMapDepth;
+      numBlockers += 1.0;
+    }
+  }
+  return numBlockers > 0.0 ? blockerSum / numBlockers : -1.0;
+}
+
+float PCSS_PCF(sampler2D shadowMap, vec2 uv, float zReceiver, float filterRadius) {
+  float sum = 0.0;
+  for (int i = 0; i < PCSS_SAMPLES; i++) {
+    vec2 offset = PCSS_poissonDisk[i % 16] * filterRadius / 2048.0;
+    float depth = unpackRGBAToDepth(texture2D(shadowMap, uv + offset));
+    sum += step(zReceiver, depth + 0.001);
+  }
+  return sum / float(PCSS_SAMPLES);
+}
+
+float PCSS_shadow(sampler2D shadowMap, vec4 coords) {
+  vec2 uv = coords.xy;
+  float zReceiver = coords.z;
+
+  PCSS_initPoissonSamples(uv);
+
+  float avgBlockerDepth = PCSS_findBlocker(shadowMap, uv, zReceiver, PCSS_SIZE);
+  if (avgBlockerDepth < 0.0) return 1.0;
+
+  float penumbraWidth = PCSS_penumbraSize(zReceiver, avgBlockerDepth);
+  return PCSS_PCF(shadowMap, uv, zReceiver, penumbraWidth * PCSS_SIZE);
+}
+`;
+
+// Override the DirectionalLight shadow function
+THREE.ShaderChunk.shadowmap_pars_fragment = THREE.ShaderChunk.shadowmap_pars_fragment.replace(
+  '#ifdef USE_SHADOWMAP',
+  '#ifdef USE_SHADOWMAP\n' + pcssGetShadow
+).replace(
+  'return shadow;',
+  'return PCSS_shadow(shadowMap, shadowCoord);'
+).replace(
+  /texture2DCompare\s*\(\s*shadowMap\s*,\s*shadowCoord\.xy\s*,\s*shadowCoord\.z\s*\)/g,
+  'PCSS_shadow(shadowMap, shadowCoord)'
+);
+
 // Initialize RectAreaLight support
 RectAreaLightUniformsLib.init();
 
@@ -33,12 +118,12 @@ const renderer = new THREE.WebGLRenderer({
   antialias: true,
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.35;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.shadowMap.enabled = false;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Soft shadows
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.BasicShadowMap; // PCSS handles softening
 
 // HDRI Environment (for subtle reflections)
 const exrLoader = new EXRLoader();
@@ -63,7 +148,7 @@ const mouseCurrent = { x: 0, y: 0 };
 const cameraBasePosition = new THREE.Vector3();
 const cameraLookCenter = new THREE.Vector3();
 const cameraLookCurrent = new THREE.Vector3();
-const cameraLookRange = { x: 4, y: 2.5 };
+const cameraLookRange = { x: 2, y: 1 };
 
 // Track mouse position (normalized -1 to 1)
 window.addEventListener('mousemove', (e) => {
@@ -138,7 +223,9 @@ gltfLoader.load(
     model.traverse((child) => {
       if (child.isMesh && child.material) {
         child.material.envMapIntensity = 0.9;
-        child.castShadow = true;
+        // Room/walls/ceiling receive shadows but don't cast them (avoids hard ceiling shadow line)
+        const isRoom = child.name.toLowerCase().includes('room');
+        child.castShadow = !isRoom;
         child.receiveShadow = true;
       }
     });
@@ -361,22 +448,23 @@ gltfLoader.load(
     scene.add(ambientLight);
 
     // Directional light (simulates sunlight through window)
-    const sunLight = new THREE.DirectionalLight(0xfff5e6, 7.5); // Warm white
-    sunLight.position.set(8, 8, 20); // Coming from window direction (left side)
-    sunLight.target.position.set(0, 6, 0);
+    const sunLight = new THREE.DirectionalLight(0xFFB770, 5.5); // Soft warm sunlight
+    sunLight.position.set(9, 7, 20); // Coming from window direction (left side)
+    sunLight.target.position.set(0, 0, 0);
     scene.add(sunLight.target);
     sunLight.castShadow = true;
 
     // Shadow settings
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.mapSize.width = 1024;
+    sunLight.shadow.mapSize.height = 1024;
     sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 40;
-    sunLight.shadow.camera.left = -20;
-    sunLight.shadow.camera.right = 20;
-    sunLight.shadow.camera.top = 20;
-    sunLight.shadow.camera.bottom = -20;
-    sunLight.shadow.bias = -0.0001; // Reduces shadow acne
+    sunLight.shadow.camera.far = 50;
+    sunLight.shadow.camera.left = -30;
+    sunLight.shadow.camera.right = 30;
+    sunLight.shadow.camera.top = 30;
+    sunLight.shadow.camera.bottom = -30;
+    sunLight.shadow.bias = -0.0001;
+    // PCSS handles shadow softness via pcssConfig.size
 
     scene.add(sunLight);
     window.sunLight = sunLight;
