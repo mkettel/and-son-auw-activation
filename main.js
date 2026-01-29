@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { RectAreaLightHelper } from 'three/addons/helpers/RectAreaLightHelper.js';
@@ -49,12 +48,19 @@ exrLoader.load(
   }
 );
 
-// Controls
-const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.minDistance = 1;
-controls.maxDistance = 100;
+// Mouse-follow camera settings
+const mouseTarget = { x: 0, y: 0 };
+const mouseCurrent = { x: 0, y: 0 };
+const cameraBasePosition = new THREE.Vector3();
+const cameraLookCenter = new THREE.Vector3(); // Center point of the scene
+const cameraLookCurrent = new THREE.Vector3(); // Current lerped look-at position
+const cameraLookRange = { x: 4, y: 2.5 }; // How far the look-at point moves based on mouse
+
+// Track mouse position (normalized -1 to 1)
+window.addEventListener('mousemove', (e) => {
+  mouseTarget.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouseTarget.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
 
 // Loading manager
 const loadingElement = document.getElementById('loading');
@@ -90,9 +96,10 @@ gltfLoader.load(
     camera.position.set(center.x + cameraZ * 0.5, center.y + cameraZ * 0.0, center.z + cameraZ);
     camera.lookAt(center);
 
-
-    controls.target.copy(center);
-    controls.update();
+    // Store base camera position and look target for mouse-follow
+    cameraBasePosition.copy(camera.position);
+    cameraLookCenter.copy(center);
+    cameraLookCurrent.copy(center);
 
     // Set envMapIntensity on all materials (subtle reflections only)
     model.traverse((child) => {
@@ -447,7 +454,25 @@ function animate() {
   const delta = clock.getDelta();
 
   stats.update();
-  controls.update();
+
+  // Smooth mouse-follow camera - look at where mouse is pointing
+  const lerpSpeed = 1 - Math.pow(0.001, delta); // More responsive lerp factor
+  mouseCurrent.x += (mouseTarget.x - mouseCurrent.x) * lerpSpeed;
+  mouseCurrent.y += (mouseTarget.y - mouseCurrent.y) * lerpSpeed;
+
+  // Calculate target look-at position based on mouse
+  if (cameraLookCenter.length() > 0) {
+    // Target look position moves based on mouse
+    const targetLookX = cameraLookCenter.x + mouseCurrent.x * cameraLookRange.x;
+    const targetLookY = cameraLookCenter.y + mouseCurrent.y * cameraLookRange.y;
+
+    // Lerp the current look position toward target
+    cameraLookCurrent.x += (targetLookX - cameraLookCurrent.x) * lerpSpeed;
+    cameraLookCurrent.y += (targetLookY - cameraLookCurrent.y) * lerpSpeed;
+
+    // Camera looks at the lerped position
+    camera.lookAt(cameraLookCurrent);
+  }
 
   // Lerp all lights for smooth light switch (frame-rate independent)
   if (window.lightSwitch) {
