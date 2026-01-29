@@ -489,7 +489,7 @@ gltfLoader.load(
       on: true, // room lights on
       roomLights: [
         { light: ambientLight, onIntensity: 0.5, current: 0.5, target: 0.5 },
-        { light: sunLight, onIntensity: 2.5, current: 2.5, target: 2.5 },
+        { light: sunLight, onIntensity: 3.6, current: 3.6, target: 3.6 },
       ],
       practicalLights: [
         // These turn ON when room lights are OFF
