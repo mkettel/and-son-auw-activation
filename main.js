@@ -45,7 +45,7 @@ exrLoader.load(
   (texture) => {
     texture.mapping = THREE.EquirectangularReflectionMapping;
     scene.environment = texture;
-    scene.background = new THREE.Color(0x1a1a1a);
+    scene.background = texture;
   }
 );
 
