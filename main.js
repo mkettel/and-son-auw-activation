@@ -245,12 +245,11 @@ gltfLoader.load(
     // Once we pick a direction, remove the unused version and this toggle code.
     // ================================================================
 
-    // Collect old room meshes for toggle, and hide them (new room shown by default)
+    // Collect old room meshes for toggle (keep visible until new room loads)
     const oldRoomMeshes = [];
     model.traverse((child) => {
       if (child.name.toLowerCase().includes('room')) {
         oldRoomMeshes.push(child);
-        child.visible = false;
       }
     });
 
@@ -358,6 +357,10 @@ gltfLoader.load(
       });
 
       scene.add(roomModel);
+
+      // Now that the new room is ready, hide the old room meshes
+      oldRoomMeshes.forEach(mesh => { mesh.visible = false; });
+
       window.roomModel = roomModel;
       window.roomToggle.newRoomModel = roomModel;
       console.log('New room model loaded. Adjust with: roomModel.position.set(x, y, z)');
