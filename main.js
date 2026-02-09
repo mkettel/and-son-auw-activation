@@ -237,6 +237,23 @@ gltfLoader.load(
       }
     });
 
+    // ============ ROOM TEXTURE COMPARISON (TEMPORARY) ============
+    // We have two versions of the room shell (walls + floor only, no interior items):
+    //   OLD: Room meshes baked into son-and-store-keep-meshes.glb, flat colors set in JS
+    //   NEW: Separate room.gltf in /models/room/ with PBR textures (concrete walls, wood plank floor)
+    // Press 'R' to toggle between them for side-by-side comparison.
+    // Once we pick a direction, remove the unused version and this toggle code.
+    // ================================================================
+
+    // Collect old room meshes for toggle, and hide them (new room shown by default)
+    const oldRoomMeshes = [];
+    model.traverse((child) => {
+      if (child.name.toLowerCase().includes('room')) {
+        oldRoomMeshes.push(child);
+        child.visible = false;
+      }
+    });
+
     // Load separate cactus model
     gltfLoader.load('/models/cactus.gltf', (cactusGltf) => {
       const cactusModel = cactusGltf.scene;
@@ -291,6 +308,77 @@ gltfLoader.load(
       cactusMaterials[3].material.envMapIntensity = 0.9;
     });
 
+    // ============ ROOM TOGGLE (Press 'R') ============
+    // Toggle between old room (flat colors from GLB) and new room (textured GLTF)
+    window.roomToggle = {
+      useNewRoom: true, // Start with new textured room
+      oldRoomMeshes: oldRoomMeshes,
+      newRoomModel: null // Set once loaded
+    };
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'r' || e.key === 'R') {
+        const toggle = window.roomToggle;
+        toggle.useNewRoom = !toggle.useNewRoom;
+
+        // Show/hide old room meshes
+        toggle.oldRoomMeshes.forEach(mesh => {
+          mesh.visible = !toggle.useNewRoom;
+        });
+
+        // Show/hide new room model
+        if (toggle.newRoomModel) {
+          toggle.newRoomModel.visible = toggle.useNewRoom;
+        }
+
+        // Update legend status
+        const statusEl = document.getElementById('room-status');
+        if (statusEl) statusEl.textContent = toggle.useNewRoom ? 'new (textured)' : 'old (flat colors)';
+
+        console.log('Room mode:', toggle.useNewRoom ? 'NEW (textured)' : 'OLD (flat colors)');
+      }
+    });
+
+    // Load new room model (textured walls + floor with cutout window)
+    gltfLoader.load('/models/room/room.gltf', (roomGltf) => {
+      const roomModel = roomGltf.scene;
+
+      // Match the main model rotation
+      roomModel.rotation.y = -1.1;
+
+      // Enable shadows on room meshes
+      roomModel.traverse((child) => {
+        if (child.isMesh) {
+          child.receiveShadow = true;
+          child.castShadow = false; // Room receives but doesn't cast
+          if (child.material) {
+            child.material.envMapIntensity = 0.9;
+          }
+        }
+      });
+
+      scene.add(roomModel);
+      window.roomModel = roomModel;
+      window.roomToggle.newRoomModel = roomModel;
+      console.log('New room model loaded. Adjust with: roomModel.position.set(x, y, z)');
+      console.log('Press R to toggle between old/new room');
+
+      // Add room materials to light switch system if already initialized
+      if (window.lightSwitch) {
+        roomModel.traverse((child) => {
+          if (child.isMesh && child.material && child.material.envMapIntensity !== undefined) {
+            window.lightSwitch.materials.push({
+              material: child.material,
+              onIntensity: child.material.envMapIntensity,
+              offIntensity: 0.55,
+              current: child.material.envMapIntensity,
+              target: child.material.envMapIntensity
+            });
+          }
+        });
+      }
+    });
+
     // Get LOGO mesh and material colors (with safety check)
     const logoMesh = model.getObjectByName('LOGO');
     if (logoMesh?.material) {
@@ -302,7 +390,7 @@ gltfLoader.load(
       logoMesh.material.emissiveIntensity = 0.8
     }
 
-    // Floor (ROOM_2) - warm it up to match Blender
+    // Floor (ROOM_2) - used when toggled back to old room
     const floorMesh = model.getObjectByName('ROOM_2');
     if (floorMesh?.material) {
       floorMesh.material.color.set(0xD4BC94); // Warmer golden wood (lighter)

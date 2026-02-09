@@ -15,6 +15,16 @@
     <div class="progress-text" id="progress-text">0%</div>
   </div>
   <canvas id="canvas"></canvas>
+
+  <div id="legend-toggle" onclick="document.getElementById('legend').classList.toggle('open')">?</div>
+  <div id="legend">
+    <div class="legend-status">Room: <span id="room-status">new (textured)</span></div>
+    <div class="legend-row"><kbd>R</kbd> <span>Toggle room (new / old)</span></div>
+    <div class="legend-row"><kbd>C</kbd> <span>Camera mode (mouse / orbit)</span></div>
+    <div class="legend-row"><kbd>L</kbd> <span>Light switch</span></div>
+    <div class="legend-row"><kbd>H</kbd> <span>Debug helpers</span></div>
+  </div>
+
   <script type="module" src="/main.js"></script>
 </body>
 </html>
