@@ -208,14 +208,14 @@
 			"uri":"concrete-wall-normal.jpg"
 		},
 		{
-			"mimeType":"image/png",
+			"mimeType":"image/jpeg",
 			"name":"CONCRETE WALL NEW",
-			"uri":"concrete-wall-base.png"
+			"uri":"concrete-wall-base.jpg"
 		},
 		{
-			"mimeType":"image/png",
+			"mimeType":"image/jpeg",
 			"name":"Concrete wall_Roughness",
-			"uri":"concrete-wall-roughness.png"
+			"uri":"concrete-wall-roughness.jpg"
 		},
 		{
 			"mimeType":"image/jpeg",
@@ -223,14 +223,14 @@
 			"uri":"woodplank-normal.jpg"
 		},
 		{
-			"mimeType":"image/png",
+			"mimeType":"image/jpeg",
 			"name":"NEW WOODPLANK BAKE",
-			"uri":"woodplank-base.png"
+			"uri":"woodplank-base.jpg"
 		},
 		{
-			"mimeType":"image/png",
+			"mimeType":"image/jpeg",
 			"name":"woodplank_45_Roughness",
-			"uri":"woodplank-roughness.png"
+			"uri":"woodplank-roughness.jpg"
 		}
 	],
 	"accessors":[
