@@ -18,11 +18,24 @@
 
   <div id="legend-toggle" onclick="document.getElementById('legend').classList.toggle('open')">?</div>
   <div id="legend">
+    <div class="legend-status">Time: <span id="time-status">--:--</span></div>
     <div class="legend-status">Room: <span id="room-status">new (textured)</span></div>
     <div class="legend-row"><kbd>R</kbd> <span>Toggle room (new / old)</span></div>
     <div class="legend-row"><kbd>C</kbd> <span>Camera mode (mouse / orbit)</span></div>
-    <div class="legend-row"><kbd>L</kbd> <span>Light switch</span></div>
+    <div class="legend-row"><kbd>L</kbd> <span>Light override (auto / manual)</span></div>
     <div class="legend-row"><kbd>H</kbd> <span>Debug helpers</span></div>
+    <div class="legend-divider"></div>
+    <div class="legend-label">Time Sim</div>
+    <div class="legend-sim-row">
+      <input type="range" id="time-slider" min="0" max="24" step="0.05" value="12">
+    </div>
+    <div class="legend-sim-row">
+      <button class="sim-btn" id="sim-speed-0" title="Paused — drag slider only">||</button>
+      <button class="sim-btn" id="sim-speed-1" title="1 hour per minute">1x</button>
+      <button class="sim-btn" id="sim-speed-6" title="6 hours per minute">6x</button>
+      <button class="sim-btn" id="sim-speed-24" title="Full day per minute">24x</button>
+      <button class="sim-btn sim-btn-reset" id="sim-reset" title="Back to real time">Live</button>
+    </div>
   </div>
 
   <script type="module" src="/main.js"></script>

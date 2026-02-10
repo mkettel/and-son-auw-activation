@@ -9,11 +9,114 @@ import Stats from "three/addons/libs/stats.module.js";
 
 // ============ PCSS SOFT SHADOWS (like Drei's SoftShadows) ============
 const pcssConfig = {
-  size: 25, // Light size - larger = softer shadows
+  size: 10, // Light size - larger = softer shadows
   samples: 6, // Quality - more samples = smoother but slower
   focus: 0, // Focus point - 0 = auto
 };
 window.pcssConfig = pcssConfig;
+
+// ============ SUN CYCLE CONFIG ============
+const sunCycleConfig = {
+  sunrise: 6,    // 6 AM
+  sunset: 18,    // 6 PM
+  center: new THREE.Vector3(5, 0, 2),
+  radius: 25,
+};
+
+// Sun cycle runtime state
+const sunCycle = {
+  override: false,    // true when user pressed L to manually override
+  lastUpdate: 0,      // timestamp of last sun recalc
+  isNight: false,      // current day/night state
+  targetPosition: new THREE.Vector3(19, 10, -6),
+  targetIntensity: 6,
+  targetColor: new THREE.Color(0xffb770),
+  currentPosition: new THREE.Vector3(19, 10, -6),
+  currentIntensity: 6,
+  currentColor: new THREE.Color(0xffb770),
+  // Sim controls
+  sim: false,         // true when using simulated time
+  simHour: 12,        // current simulated decimal hour
+  simSpeed: 0,        // multiplier: 0 = paused (slider-only), 60/360/etc = fast-forward
+};
+
+// Color temperature keyframes
+const sunColors = {
+  dawn:    new THREE.Color(0xFF6B35),  // deep orange
+  morning: new THREE.Color(0xFFB770),  // warm (current color)
+  noon:    new THREE.Color(0xFFF4E0),  // near-white warm
+};
+
+/**
+ * Get sun position, intensity, and color for a given decimal hour.
+ * @param {number} hour - Decimal hour (e.g. 14.5 = 2:30 PM)
+ * @returns {{ position: THREE.Vector3, intensity: number, color: THREE.Color }}
+ */
+function getSunPosition(hour) {
+  const { sunrise, sunset, center, radius } = sunCycleConfig;
+  const dawnDuration = 1;   // 1 hour ramp at dawn
+  const duskDuration = 1;   // 1 hour ramp at dusk
+
+  // Default: night
+  let intensity = 0;
+  const color = new THREE.Color();
+  const position = new THREE.Vector3();
+
+  if (hour >= sunrise && hour <= sunset) {
+    // Map sunrise→sunset to 0→PI
+    const t = (hour - sunrise) / (sunset - sunrise); // 0..1
+    const angle = t * Math.PI; // 0..PI
+
+    // Sun arc: sweeps from one side of window to other, rising and falling
+    // x stays on the +x side (window side), y rises/falls, z sweeps across
+    position.set(
+      center.x + radius * 0.6,                    // stay outside room on window side
+      center.y + radius * Math.sin(angle),         // rises at noon, low at dawn/dusk
+      center.z + radius * Math.cos(angle) * 0.8    // sweeps across
+    );
+
+    // Intensity ramp at dawn/dusk edges
+    const dayLength = sunset - sunrise;
+    const hoursFromSunrise = hour - sunrise;
+    const hoursFromSunset = sunset - hour;
+
+    if (hoursFromSunrise < dawnDuration) {
+      // Dawn ramp: 0→1 over dawnDuration
+      intensity = 6 * smoothstep(hoursFromSunrise / dawnDuration);
+    } else if (hoursFromSunset < duskDuration) {
+      // Dusk ramp: 1→0 over duskDuration
+      intensity = 6 * smoothstep(hoursFromSunset / duskDuration);
+    } else {
+      intensity = 6;
+    }
+
+    // Color temperature: orange at edges, warm-white at noon
+    // elevation factor: 0 at horizon, 1 at zenith
+    const elevation = Math.sin(angle); // 0..1..0
+    if (elevation < 0.3) {
+      // Dawn/dusk zone: deep orange → morning warm
+      const ct = elevation / 0.3;
+      color.copy(sunColors.dawn).lerp(sunColors.morning, ct);
+    } else {
+      // Morning/afternoon → noon: warm → near-white
+      const ct = (elevation - 0.3) / 0.7;
+      color.copy(sunColors.morning).lerp(sunColors.noon, ct);
+    }
+  } else {
+    // Night: below horizon
+    intensity = 0;
+    position.set(center.x + radius * 0.6, -5, center.z);
+    color.copy(sunColors.dawn);
+  }
+
+  return { position, intensity, color };
+}
+
+/** Attempt a smooth Hermite-like step */
+function smoothstep(t) {
+  t = Math.max(0, Math.min(1, t));
+  return t * t * (3 - 2 * t);
+}
 
 // Patch Three.js shadow shaders for PCSS
 let originalShaderChunk = THREE.ShaderChunk.shadowmap_pars_fragment;
@@ -224,9 +327,7 @@ gltfLoader.load(
     model.traverse((child) => {
       if (child.isMesh && child.material) {
         child.material.envMapIntensity = 0.9;
-        // Room/walls/ceiling receive shadows but don't cast them (avoids hard ceiling shadow line)
-        const isRoom = child.name.toLowerCase().includes("room");
-        child.castShadow = !isRoom;
+        child.castShadow = true;
         child.receiveShadow = true;
       }
     });
@@ -361,7 +462,7 @@ gltfLoader.load(
       roomModel.traverse((child) => {
         if (child.isMesh) {
           child.receiveShadow = true;
-          child.castShadow = false; // Room receives but doesn't cast
+          child.castShadow = true;
           if (child.material) {
             child.material.envMapIntensity = 0.9;
           }
@@ -565,31 +666,33 @@ gltfLoader.load(
     // areaTop.lookAt(6, 10, 2);
     // scene.add(areaTop);
 
-    // Ambient light (lower for more depth)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    // Ambient light — low for window light contrast
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.15);
     scene.add(ambientLight);
 
     // Directional light (simulates sunlight through window)
-    const sunLight = new THREE.DirectionalLight(0xffb770, 4.5); // Soft warm sunlight
-    sunLight.position.set(9, 7, 20); // Coming from window direction (left side)
-    sunLight.target.position.set(0, 1, 0);
+    const sunLight = new THREE.DirectionalLight(0xffb770, 6); // Soft warm sunlight
+    sunLight.position.set(19, 10, -6); // Coming from window direction (left side) 19,7,20
+    sunLight.target.position.set(0, 0.5, 3);
     scene.add(sunLight.target);
     sunLight.castShadow = true;
 
-    // Shadow settings
-    sunLight.shadow.mapSize.width = 1024;
-    sunLight.shadow.mapSize.height = 1024;
+    // Shadow settings — tight frustum around room for sharp window shadows
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
     sunLight.shadow.camera.near = 0.5;
     sunLight.shadow.camera.far = 50;
-    sunLight.shadow.camera.left = -30;
-    sunLight.shadow.camera.right = 30;
-    sunLight.shadow.camera.top = 30;
-    sunLight.shadow.camera.bottom = -30;
+    sunLight.shadow.camera.left = -15;
+    sunLight.shadow.camera.right = 15;
+    sunLight.shadow.camera.top = 15;
+    sunLight.shadow.camera.bottom = -15;
     sunLight.shadow.bias = -0.0001;
     // PCSS handles shadow softness via pcssConfig.size
 
     scene.add(sunLight);
     window.sunLight = sunLight;
+    window.sunCycle = sunCycle;
+    window.getSunPosition = getSunPosition;
 
     // ============ LIGHT SWITCH (Press 'L') ============
     // Collect all materials for envMapIntensity control
@@ -614,8 +717,8 @@ gltfLoader.load(
     window.lightSwitch = {
       on: true, // room lights on
       roomLights: [
-        { light: ambientLight, onIntensity: 0.5, current: 0.5, target: 0.5 },
-        { light: sunLight, onIntensity: 2.2, current: 2.2, target: 2.2 },
+        { light: ambientLight, onIntensity: 0.15, current: 0.15, target: 0.15 },
+        { light: sunLight, onIntensity: 6, current: 6, target: 6 },
       ],
       practicalLights: [
         // These turn ON when room lights are OFF
@@ -628,26 +731,75 @@ gltfLoader.load(
       materials: allMaterials,
     };
 
-    // Start with practical lights off
-    window.lightSwitch.practicalLights.forEach((l) => (l.light.intensity = 0));
+    // Initialize sun cycle state based on current time
+    {
+      const date = new Date();
+      const currentHour = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+      const sun = getSunPosition(currentHour);
+
+      sunCycle.targetPosition.copy(sun.position);
+      sunCycle.currentPosition.copy(sun.position);
+      sunCycle.targetIntensity = sun.intensity;
+      sunCycle.currentIntensity = sun.intensity;
+      sunCycle.targetColor.copy(sun.color);
+      sunCycle.currentColor.copy(sun.color);
+      sunCycle.isNight = sun.intensity < 0.1;
+
+      // Apply immediately
+      sunLight.position.copy(sun.position);
+      sunLight.intensity = sun.intensity;
+      sunLight.color.copy(sun.color);
+
+      if (sunCycle.isNight) {
+        // Night: practical lights on, ambient dimmed
+        window.lightSwitch.on = false;
+        window.lightSwitch.roomLights.forEach((l) => {
+          if (l.light === sunLight) return;
+          l.current = 0.02;
+          l.target = 0.02;
+          l.light.intensity = 0.02;
+        });
+        window.lightSwitch.practicalLights.forEach((l) => {
+          l.current = l.onIntensity;
+          l.target = l.onIntensity;
+          l.light.intensity = l.onIntensity;
+        });
+        window.lightSwitch.materials.forEach((m) => {
+          m.current = m.offIntensity;
+          m.target = m.offIntensity;
+          m.material.envMapIntensity = m.offIntensity;
+        });
+      } else {
+        // Day: practical lights off
+        window.lightSwitch.practicalLights.forEach((l) => (l.light.intensity = 0));
+      }
+    }
 
     window.addEventListener("keydown", (e) => {
       if (e.key === "l" || e.key === "L") {
-        window.lightSwitch.on = !window.lightSwitch.on;
-        const on = window.lightSwitch.on;
-        // Room lights: on when bright
-        window.lightSwitch.roomLights.forEach((l) => {
-          l.target = on ? l.onIntensity : 0;
-        });
-        // Practical lights: on when dark (opposite)
-        window.lightSwitch.practicalLights.forEach((l) => {
-          l.target = on ? 0 : l.onIntensity;
-        });
-        // Materials envMapIntensity: high when bright, low when dark
-        window.lightSwitch.materials.forEach((m) => {
-          m.target = on ? m.onIntensity : m.offIntensity;
-        });
-        console.log("Room lights:", on ? "ON" : "OFF");
+        if (sunCycle.override) {
+          // Second press: release override, return to auto mode
+          sunCycle.override = false;
+          console.log("Light override OFF — returning to auto sun cycle");
+        } else {
+          // First press: enable override and toggle lights
+          sunCycle.override = true;
+          window.lightSwitch.on = !window.lightSwitch.on;
+          const on = window.lightSwitch.on;
+          // Room lights: on when bright
+          window.lightSwitch.roomLights.forEach((l) => {
+            l.target = on ? l.onIntensity : 0;
+          });
+          // Practical lights: on when dark (opposite)
+          window.lightSwitch.practicalLights.forEach((l) => {
+            l.target = on ? 0 : l.onIntensity;
+          });
+          // Materials envMapIntensity: high when bright, low when dark
+          window.lightSwitch.materials.forEach((m) => {
+            m.target = on ? m.onIntensity : m.offIntensity;
+          });
+          console.log("Light override ON — lights:", on ? "ON" : "OFF");
+        }
       }
     });
 
@@ -735,6 +887,62 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// ============ TIME SIM CONTROLS ============
+function activateSim(speed) {
+  const date = new Date();
+  if (!sunCycle.sim) {
+    // Starting sim — seed from current real time
+    sunCycle.simHour = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+  }
+  sunCycle.sim = true;
+  sunCycle.simSpeed = speed;
+  sunCycle.override = false; // clear L-key override so sun cycle drives lights
+  const slider = document.getElementById("time-slider");
+  if (slider) slider.value = sunCycle.simHour;
+  updateSimButtons();
+}
+
+function deactivateSim() {
+  sunCycle.sim = false;
+  sunCycle.simSpeed = 0;
+  sunCycle.override = false;
+  updateSimButtons();
+}
+
+function updateSimButtons() {
+  document.querySelectorAll(".sim-btn").forEach((btn) => btn.classList.remove("active"));
+  if (!sunCycle.sim) {
+    const resetBtn = document.getElementById("sim-reset");
+    if (resetBtn) resetBtn.classList.add("active");
+    return;
+  }
+  const speedMap = { 0: "sim-speed-0", 1: "sim-speed-1", 6: "sim-speed-6", 24: "sim-speed-24" };
+  const activeId = speedMap[sunCycle.simSpeed];
+  if (activeId) {
+    const btn = document.getElementById(activeId);
+    if (btn) btn.classList.add("active");
+  }
+}
+
+// Slider: dragging sets sim hour directly
+const timeSlider = document.getElementById("time-slider");
+if (timeSlider) {
+  timeSlider.addEventListener("input", (e) => {
+    if (!sunCycle.sim) activateSim(0); // activate sim in paused mode on first drag
+    sunCycle.simHour = parseFloat(e.target.value);
+  });
+}
+
+// Speed buttons
+document.getElementById("sim-speed-0")?.addEventListener("click", () => activateSim(0));
+document.getElementById("sim-speed-1")?.addEventListener("click", () => activateSim(1));
+document.getElementById("sim-speed-6")?.addEventListener("click", () => activateSim(6));
+document.getElementById("sim-speed-24")?.addEventListener("click", () => activateSim(24));
+document.getElementById("sim-reset")?.addEventListener("click", () => deactivateSim());
+
+// Mark "Live" as active by default
+updateSimButtons();
+
 // Animation loop with deltaTime for consistent speed
 const clock = new THREE.Clock();
 
@@ -767,10 +975,82 @@ function animate() {
     controls.update();
   }
 
+  // ============ SUN CYCLE UPDATE ============
+  // Advance sim time each frame when speed > 0
+  if (sunCycle.sim && sunCycle.simSpeed > 0) {
+    sunCycle.simHour += delta * sunCycle.simSpeed / 60; // simSpeed = hours per real-minute, delta in seconds
+    if (sunCycle.simHour >= 24) sunCycle.simHour -= 24;
+    if (sunCycle.simHour < 0) sunCycle.simHour += 24;
+    // Update slider to match
+    const slider = document.getElementById("time-slider");
+    if (slider) slider.value = sunCycle.simHour;
+  }
+
+  if (window.lightSwitch && window.sunLight) {
+    const now = performance.now();
+    const updateInterval = sunCycle.sim ? 50 : 1000; // faster updates during sim
+    if (now - sunCycle.lastUpdate > updateInterval) {
+      sunCycle.lastUpdate = now;
+
+      let currentHour;
+      if (sunCycle.sim) {
+        currentHour = sunCycle.simHour;
+      } else {
+        const date = new Date();
+        currentHour = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+      }
+      const sun = getSunPosition(currentHour);
+
+      // Update sun targets
+      sunCycle.targetPosition.copy(sun.position);
+      sunCycle.targetIntensity = sun.intensity;
+      sunCycle.targetColor.copy(sun.color);
+
+      // Determine night state
+      const wasNight = sunCycle.isNight;
+      sunCycle.isNight = sun.intensity < 0.1;
+
+      // Auto-toggle practical lights when day/night changes (unless overridden)
+      if (!sunCycle.override && wasNight !== sunCycle.isNight) {
+        const on = !sunCycle.isNight; // lights "on" = daytime = sun is up
+        window.lightSwitch.on = on;
+        // Room lights (ambient): dim at night but don't go to zero
+        window.lightSwitch.roomLights.forEach((l) => {
+          // Skip sunLight — it's controlled by the sun cycle directly
+          if (l.light === window.sunLight) return;
+          l.target = on ? l.onIntensity : 0.02;
+        });
+        // Practical lights: on at night
+        window.lightSwitch.practicalLights.forEach((l) => {
+          l.target = on ? 0 : l.onIntensity;
+        });
+        // Materials envMapIntensity
+        window.lightSwitch.materials.forEach((m) => {
+          m.target = on ? m.onIntensity : m.offIntensity;
+        });
+        console.log("Sun cycle auto-toggle:", on ? "DAY" : "NIGHT");
+      }
+
+      // Update time display in legend
+      const timeEl = document.getElementById("time-status");
+      if (timeEl) {
+        const displayHour = sunCycle.sim ? sunCycle.simHour : currentHour;
+        const h = Math.floor(displayHour);
+        const m = Math.floor((displayHour - h) * 60);
+        const ampm = h >= 12 ? "PM" : "AM";
+        const h12 = h % 12 || 12;
+        const suffix = sunCycle.sim ? " (sim)" : "";
+        timeEl.textContent = `${h12}:${m.toString().padStart(2, "0")} ${ampm}${suffix}`;
+      }
+    }
+  }
+
   // Lerp all lights for smooth light switch (frame-rate independent)
   if (window.lightSwitch) {
     const lerpFactor = 1 - Math.pow(0.01, delta); // Smooth ~3 second transition
     const lerpLight = (l) => {
+      // Skip sunLight in roomLights lerp — sun cycle controls it directly
+      if (!sunCycle.override && l.light === window.sunLight) return;
       l.current += (l.target - l.current) * lerpFactor;
       l.light.intensity = l.current;
     };
@@ -781,6 +1061,21 @@ function animate() {
     window.lightSwitch.roomLights?.forEach(lerpLight);
     window.lightSwitch.practicalLights?.forEach(lerpLight);
     window.lightSwitch.materials?.forEach(lerpMaterial);
+  }
+
+  // Lerp sun position, intensity, and color toward targets
+  if (window.sunLight && !sunCycle.override) {
+    const sunLerp = 1 - Math.pow(0.05, delta); // Smoother, slower transition for sun
+    sunCycle.currentPosition.lerp(sunCycle.targetPosition, sunLerp);
+    sunCycle.currentIntensity += (sunCycle.targetIntensity - sunCycle.currentIntensity) * sunLerp;
+    sunCycle.currentColor.lerp(sunCycle.targetColor, sunLerp);
+
+    window.sunLight.position.copy(sunCycle.currentPosition);
+    window.sunLight.intensity = sunCycle.currentIntensity;
+    window.sunLight.color.copy(sunCycle.currentColor);
+
+    // Update shadow camera to follow sun
+    window.sunLight.shadow.camera.updateProjectionMatrix();
   }
 
   renderer.render(scene, camera);
