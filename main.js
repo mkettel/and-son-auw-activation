@@ -637,12 +637,12 @@ gltfLoader.load(
 
     // --- SCONCES (Point Lights - white) ---
     // Left sconce
-    const sconceLeft = new THREE.PointLight(whiteColor, 5, 10, 1);
+    const sconceLeft = new THREE.PointLight(warmColor, 5, 10, 1);
     sconceLeft.position.set(-4, 6.5, 1.2);
     scene.add(sconceLeft);
 
     // Right sconce
-    const sconceRight = new THREE.PointLight(whiteColor, 5, 10, 1);
+    const sconceRight = new THREE.PointLight(warmColor, 5, 10, 1);
     sconceRight.position.set(14.3, 6.5, -6.9);
     scene.add(sconceRight);
 
