@@ -1,17 +1,17 @@
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
-import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
-import { RectAreaLightHelper } from 'three/addons/helpers/RectAreaLightHelper.js';
-import Stats from 'three/addons/libs/stats.module.js';
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
+import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
+import { RectAreaLightHelper } from "three/addons/helpers/RectAreaLightHelper.js";
+import Stats from "three/addons/libs/stats.module.js";
 
 // ============ PCSS SOFT SHADOWS (like Drei's SoftShadows) ============
 const pcssConfig = {
-  size: 25,      // Light size - larger = softer shadows
-  samples: 6,   // Quality - more samples = smoother but slower
-  focus: 0       // Focus point - 0 = auto
+  size: 25, // Light size - larger = softer shadows
+  samples: 6, // Quality - more samples = smoother but slower
+  focus: 0, // Focus point - 0 = auto
 };
 window.pcssConfig = pcssConfig;
 
@@ -81,16 +81,14 @@ float PCSS_shadow(sampler2D shadowMap, vec4 coords) {
 `;
 
 // Override the DirectionalLight shadow function
-THREE.ShaderChunk.shadowmap_pars_fragment = THREE.ShaderChunk.shadowmap_pars_fragment.replace(
-  '#ifdef USE_SHADOWMAP',
-  '#ifdef USE_SHADOWMAP\n' + pcssGetShadow
-).replace(
-  'return shadow;',
-  'return PCSS_shadow(shadowMap, shadowCoord);'
-).replace(
-  /texture2DCompare\s*\(\s*shadowMap\s*,\s*shadowCoord\.xy\s*,\s*shadowCoord\.z\s*\)/g,
-  'PCSS_shadow(shadowMap, shadowCoord)'
-);
+THREE.ShaderChunk.shadowmap_pars_fragment =
+  THREE.ShaderChunk.shadowmap_pars_fragment
+    .replace("#ifdef USE_SHADOWMAP", "#ifdef USE_SHADOWMAP\n" + pcssGetShadow)
+    .replace("return shadow;", "return PCSS_shadow(shadowMap, shadowCoord);")
+    .replace(
+      /texture2DCompare\s*\(\s*shadowMap\s*,\s*shadowCoord\.xy\s*,\s*shadowCoord\.z\s*\)/g,
+      "PCSS_shadow(shadowMap, shadowCoord)",
+    );
 
 // Initialize RectAreaLight support
 RectAreaLightUniformsLib.init();
@@ -107,12 +105,12 @@ const camera = new THREE.PerspectiveCamera(
   45,
   window.innerWidth / window.innerHeight,
   0.1,
-  1000
+  1000,
 );
 camera.position.set(0, 0, 5);
 
 // Renderer
-const canvas = document.getElementById('canvas');
+const canvas = document.getElementById("canvas");
 const renderer = new THREE.WebGLRenderer({
   canvas,
   antialias: true,
@@ -127,18 +125,15 @@ renderer.shadowMap.type = THREE.BasicShadowMap; // PCSS handles softening
 
 // HDRI Environment (for subtle reflections)
 const exrLoader = new EXRLoader();
-exrLoader.load(
-  '/hdri/forest.exr',
-  (texture) => {
-    texture.mapping = THREE.EquirectangularReflectionMapping;
-    scene.environment = texture;
-    scene.background = texture;
-  }
-);
+exrLoader.load("/hdri/forest.exr", (texture) => {
+  texture.mapping = THREE.EquirectangularReflectionMapping;
+  scene.environment = texture;
+  scene.background = texture;
+});
 
 // Camera mode config: 'mouse' or 'orbit'
 const cameraConfig = {
-  mode: 'mouse', // 'mouse' = mouse-follow, 'orbit' = OrbitControls
+  mode: "mouse", // 'mouse' = mouse-follow, 'orbit' = OrbitControls
 };
 window.cameraConfig = cameraConfig;
 
@@ -151,7 +146,7 @@ const cameraLookCurrent = new THREE.Vector3();
 const cameraLookRange = { x: 2, y: 1 };
 
 // Track mouse position (normalized -1 to 1)
-window.addEventListener('mousemove', (e) => {
+window.addEventListener("mousemove", (e) => {
   mouseTarget.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouseTarget.y = -(e.clientY / window.innerHeight) * 2 + 1;
 });
@@ -165,29 +160,31 @@ controls.maxDistance = 100;
 controls.enabled = false; // Start with mouse mode
 
 // Toggle camera mode with 'C' key
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'c' || e.key === 'C') {
-    cameraConfig.mode = cameraConfig.mode === 'mouse' ? 'orbit' : 'mouse';
-    controls.enabled = cameraConfig.mode === 'orbit';
+window.addEventListener("keydown", (e) => {
+  if (e.key === "c" || e.key === "C") {
+    cameraConfig.mode = cameraConfig.mode === "mouse" ? "orbit" : "mouse";
+    controls.enabled = cameraConfig.mode === "orbit";
 
     // Reset orbit controls target when switching to orbit mode
-    if (cameraConfig.mode === 'orbit' && cameraLookCenter.length() > 0) {
+    if (cameraConfig.mode === "orbit" && cameraLookCenter.length() > 0) {
       controls.target.copy(cameraLookCenter);
       controls.update();
     }
 
-    console.log('Camera mode:', cameraConfig.mode);
+    console.log("Camera mode:", cameraConfig.mode);
   }
 });
 
 // Loading manager
-const loadingElement = document.getElementById('loading');
-const progressFill = document.getElementById('progress-fill');
-const progressText = document.getElementById('progress-text');
+const loadingElement = document.getElementById("loading");
+const progressFill = document.getElementById("progress-fill");
+const progressText = document.getElementById("progress-text");
 
 // DRACO loader (for compressed models)
 const dracoLoader = new DRACOLoader();
-dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+dracoLoader.setDecoderPath(
+  "https://www.gstatic.com/draco/versioned/decoders/1.5.6/",
+);
 
 // GLTF loader
 const gltfLoader = new GLTFLoader();
@@ -195,7 +192,7 @@ gltfLoader.setDRACOLoader(dracoLoader);
 
 // Load model
 gltfLoader.load(
-  '/models/son-and-store-keep-meshes.glb',
+  "/models/son-and-store-keep-meshes.glb",
   (gltf) => {
     const model = gltf.scene;
     model.rotation.y = -1.1;
@@ -211,7 +208,11 @@ gltfLoader.load(
     let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
     cameraZ *= 0.6; // Add some padding
 
-    camera.position.set(center.x + cameraZ * 0.5, center.y + cameraZ * 0.0, center.z + cameraZ);
+    camera.position.set(
+      center.x + cameraZ * 0.5,
+      center.y + cameraZ * 0.0,
+      center.z + cameraZ,
+    );
     camera.lookAt(center);
 
     // Store base camera position and look target for mouse-follow
@@ -224,7 +225,7 @@ gltfLoader.load(
       if (child.isMesh && child.material) {
         child.material.envMapIntensity = 0.9;
         // Room/walls/ceiling receive shadows but don't cast them (avoids hard ceiling shadow line)
-        const isRoom = child.name.toLowerCase().includes('room');
+        const isRoom = child.name.toLowerCase().includes("room");
         child.castShadow = !isRoom;
         child.receiveShadow = true;
       }
@@ -232,7 +233,7 @@ gltfLoader.load(
 
     // Hide cactus in main model (using separate cactus model instead)
     model.traverse((child) => {
-      if (child.name.toLowerCase().includes('cactus')) {
+      if (child.name.toLowerCase().includes("cactus")) {
         child.visible = false;
       }
     });
@@ -248,13 +249,13 @@ gltfLoader.load(
     // Collect old room meshes for toggle (keep visible until new room loads)
     const oldRoomMeshes = [];
     model.traverse((child) => {
-      if (child.name.toLowerCase().includes('room')) {
+      if (child.name.toLowerCase().includes("room")) {
         oldRoomMeshes.push(child);
       }
     });
 
     // Load separate cactus model
-    gltfLoader.load('/models/cactus.gltf', (cactusGltf) => {
+    gltfLoader.load("/models/cactus.gltf", (cactusGltf) => {
       const cactusModel = cactusGltf.scene;
 
       // Match the main model rotation
@@ -267,7 +268,9 @@ gltfLoader.load(
 
       // Expose for positioning in console
       window.cactusModel = cactusModel;
-      console.log('Cactus loaded. Adjust position with: cactusModel.position.set(x, y, z)');
+      console.log(
+        "Cactus loaded. Adjust position with: cactusModel.position.set(x, y, z)",
+      );
 
       // Log cactus meshes and enable shadows
       const cactusMeshes = [];
@@ -279,11 +282,14 @@ gltfLoader.load(
         }
       });
       window.cactusMaterials = cactusMeshes;
-      console.log('Cactus meshes:', cactusMeshes.map(c => c.name));
+      console.log(
+        "Cactus meshes:",
+        cactusMeshes.map((c) => c.name),
+      );
 
       // Set the colors of the cactus meshes individually
       // Pot
-      cactusMaterials[0].material.color.set(0x4D1E04);
+      cactusMaterials[0].material.color.set(0x4d1e04);
       cactusMaterials[0].material.roughness = 0.3;
       cactusMaterials[0].material.metalness = 0.1;
       cactusMaterials[0].material.envMapIntensity = 0.9;
@@ -295,13 +301,13 @@ gltfLoader.load(
       cactusMaterials[1].material.envMapIntensity = 0.9;
 
       // Body
-      cactusMaterials[2].material.color.set(0x1E2816);
+      cactusMaterials[2].material.color.set(0x1e2816);
       cactusMaterials[2].material.roughness = 0.8;
       cactusMaterials[2].material.metalness = 0.1;
       cactusMaterials[2].material.envMapIntensity = 0.9;
 
       // Ground
-      cactusMaterials[3].material.color.set(0x1E2816);
+      cactusMaterials[3].material.color.set(0x1e2816);
       cactusMaterials[3].material.roughness = 0.8;
       cactusMaterials[3].material.metalness = 0.1;
       cactusMaterials[3].material.envMapIntensity = 0.9;
@@ -312,16 +318,16 @@ gltfLoader.load(
     window.roomToggle = {
       useNewRoom: true, // Start with new textured room
       oldRoomMeshes: oldRoomMeshes,
-      newRoomModel: null // Set once loaded
+      newRoomModel: null, // Set once loaded
     };
 
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'r' || e.key === 'R') {
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "r" || e.key === "R") {
         const toggle = window.roomToggle;
         toggle.useNewRoom = !toggle.useNewRoom;
 
         // Show/hide old room meshes
-        toggle.oldRoomMeshes.forEach(mesh => {
+        toggle.oldRoomMeshes.forEach((mesh) => {
           mesh.visible = !toggle.useNewRoom;
         });
 
@@ -331,15 +337,21 @@ gltfLoader.load(
         }
 
         // Update legend status
-        const statusEl = document.getElementById('room-status');
-        if (statusEl) statusEl.textContent = toggle.useNewRoom ? 'new (textured)' : 'old (flat colors)';
+        const statusEl = document.getElementById("room-status");
+        if (statusEl)
+          statusEl.textContent = toggle.useNewRoom
+            ? "new (textured)"
+            : "old (flat colors)";
 
-        console.log('Room mode:', toggle.useNewRoom ? 'NEW (textured)' : 'OLD (flat colors)');
+        console.log(
+          "Room mode:",
+          toggle.useNewRoom ? "NEW (textured)" : "OLD (flat colors)",
+        );
       }
     });
 
     // Load new room model (textured walls + floor with cutout window)
-    gltfLoader.load('/models/room/room.gltf', (roomGltf) => {
+    gltfLoader.load("/models/room/room.gltf", (roomGltf) => {
       const roomModel = roomGltf.scene;
 
       // Match the main model rotation
@@ -359,23 +371,31 @@ gltfLoader.load(
       scene.add(roomModel);
 
       // Now that the new room is ready, hide the old room meshes
-      oldRoomMeshes.forEach(mesh => { mesh.visible = false; });
+      oldRoomMeshes.forEach((mesh) => {
+        mesh.visible = false;
+      });
 
       window.roomModel = roomModel;
       window.roomToggle.newRoomModel = roomModel;
-      console.log('New room model loaded. Adjust with: roomModel.position.set(x, y, z)');
-      console.log('Press R to toggle between old/new room');
+      console.log(
+        "New room model loaded. Adjust with: roomModel.position.set(x, y, z)",
+      );
+      console.log("Press R to toggle between old/new room");
 
       // Add room materials to light switch system if already initialized
       if (window.lightSwitch) {
         roomModel.traverse((child) => {
-          if (child.isMesh && child.material && child.material.envMapIntensity !== undefined) {
+          if (
+            child.isMesh &&
+            child.material &&
+            child.material.envMapIntensity !== undefined
+          ) {
             window.lightSwitch.materials.push({
               material: child.material,
               onIntensity: child.material.envMapIntensity,
               offIntensity: 0.55,
               current: child.material.envMapIntensity,
-              target: child.material.envMapIntensity
+              target: child.material.envMapIntensity,
             });
           }
         });
@@ -383,27 +403,27 @@ gltfLoader.load(
     });
 
     // Get LOGO mesh and material colors (with safety check)
-    const logoMesh = model.getObjectByName('LOGO');
+    const logoMesh = model.getObjectByName("LOGO");
     if (logoMesh?.material) {
       logoMesh.material.color.set(0xffffff);
       logoMesh.material.roughness = 0.8;
       logoMesh.material.metalness = 0.1;
       logoMesh.material.envMapIntensity = 1.7;
       logoMesh.material.emissive.set(0xffffff);
-      logoMesh.material.emissiveIntensity = 0.8
+      logoMesh.material.emissiveIntensity = 0.8;
     }
 
     // Floor (ROOM_2) - used when toggled back to old room
-    const floorMesh = model.getObjectByName('ROOM_2');
+    const floorMesh = model.getObjectByName("ROOM_2");
     if (floorMesh?.material) {
-      floorMesh.material.color.set(0xD4BC94); // Warmer golden wood (lighter)
+      floorMesh.material.color.set(0xd4bc94); // Warmer golden wood (lighter)
       floorMesh.material.roughness = 0.8;
       floorMesh.material.envMapIntensity = 0.99;
       window.floorMaterial = floorMesh.material;
     }
 
     // Rug Materials - matte fabric look
-    const rugMesh = model.getObjectByName('Shaggy_carpet');
+    const rugMesh = model.getObjectByName("Shaggy_carpet");
     if (rugMesh?.material) {
       rugMesh.material.roughness = 0.6;
       rugMesh.material.metalness = 0.0;
@@ -416,14 +436,12 @@ gltfLoader.load(
       rugMesh.material.needsUpdate = true;
       window.rugMaterial = rugMesh.material;
     }
-   
-
 
     // ============ DECAL (AUW Logo) on DJ Booth ============
-    const boothMesh = model.getObjectByName('BOOTH_DJ');
+    const boothMesh = model.getObjectByName("BOOTH_DJ");
     if (boothMesh) {
       const textureLoader = new THREE.TextureLoader();
-      textureLoader.load('/textures/test-decal.png', (texture) => {
+      textureLoader.load("/textures/test-decal.png", (texture) => {
         texture.colorSpace = THREE.SRGBColorSpace;
 
         const decalGeometry = new THREE.PlaneGeometry(1, 1);
@@ -450,9 +468,9 @@ gltfLoader.load(
 
         window.decal = decal;
         window.boothMesh = boothMesh;
-        console.log('Decal placed on BOOTH_DJ at:', center);
-        console.log('Adjust with: decal.position.set(x, y, z)');
-        console.log('Resize with: decal.scale.set(w, h, 1)');
+        console.log("Decal placed on BOOTH_DJ at:", center);
+        console.log("Adjust with: decal.position.set(x, y, z)");
+        console.log("Resize with: decal.scale.set(w, h, 1)");
       });
     }
 
@@ -462,11 +480,10 @@ gltfLoader.load(
       if (child.isMesh && child.material) meshes[child.name] = child.material;
     });
     window.meshes = meshes;
-    console.log('=== ALL MESHES IN MODEL ===');
-    console.log('Total count:', Object.keys(meshes).length);
-    console.log('Names:', Object.keys(meshes));
-    console.table(Object.keys(meshes).map(name => ({ name })));
-
+    console.log("=== ALL MESHES IN MODEL ===");
+    console.log("Total count:", Object.keys(meshes).length);
+    console.log("Names:", Object.keys(meshes));
+    console.table(Object.keys(meshes).map((name) => ({ name })));
 
     // // DEBUG: Uncomment to expose ALL materials
     // const materials = {};
@@ -478,8 +495,8 @@ gltfLoader.load(
 
     // ============ LIGHTING SETUP ============
     // Colors
-    const warmColor = 0xFFB770;  // Warm orange for lamp and area lights
-    const whiteColor = 0xFFFFFF; // White for sconces
+    const warmColor = 0xffb770; // Warm orange for lamp and area lights
+    const whiteColor = 0xffffff; // White for sconces
 
     // --- LAMP (Point Light - diffuse glow through shade) ---
     const lampPointLight = new THREE.PointLight(warmColor, 3, 12, 2);
@@ -488,7 +505,14 @@ gltfLoader.load(
     window.lampPointLight = lampPointLight;
 
     // --- LAMP (Spotlight - pointing up) ---
-    const lampLightUp = new THREE.SpotLight(warmColor, 15, 15, Math.PI / 4, 1, 1);
+    const lampLightUp = new THREE.SpotLight(
+      warmColor,
+      15,
+      15,
+      Math.PI / 4,
+      1,
+      1,
+    );
     lampLightUp.position.set(-2.7, 4.0, 8.75);
     lampLightUp.target.position.set(-2.7, 10, 8.75);
     scene.add(lampLightUp);
@@ -496,7 +520,14 @@ gltfLoader.load(
     window.lampLightUp = lampLightUp;
 
     // --- LAMP (Spotlight - pointing down) ---
-    const lampLightDown = new THREE.SpotLight(warmColor, 15, 10, Math.PI / 3, 1, 1);
+    const lampLightDown = new THREE.SpotLight(
+      warmColor,
+      15,
+      10,
+      Math.PI / 3,
+      1,
+      1,
+    );
     lampLightDown.position.set(-2.7, 4.0, 8.75);
     lampLightDown.target.position.set(-2.7, 0, 8.75);
     scene.add(lampLightDown);
@@ -539,7 +570,7 @@ gltfLoader.load(
     scene.add(ambientLight);
 
     // Directional light (simulates sunlight through window)
-    const sunLight = new THREE.DirectionalLight(0xFFB770, 6.5); // Soft warm sunlight
+    const sunLight = new THREE.DirectionalLight(0xffb770, 4.5); // Soft warm sunlight
     sunLight.position.set(9, 7, 20); // Coming from window direction (left side)
     sunLight.target.position.set(0, 1, 0);
     scene.add(sunLight.target);
@@ -564,13 +595,17 @@ gltfLoader.load(
     // Collect all materials for envMapIntensity control
     const allMaterials = [];
     model.traverse((child) => {
-      if (child.isMesh && child.material && child.material.envMapIntensity !== undefined) {
+      if (
+        child.isMesh &&
+        child.material &&
+        child.material.envMapIntensity !== undefined
+      ) {
         allMaterials.push({
           material: child.material,
           onIntensity: child.material.envMapIntensity, // current value as "on" value
-          offIntensity: 0.55, // dim when lights off
+          offIntensity: 0.95, // dim when lights off
           current: child.material.envMapIntensity,
-          target: child.material.envMapIntensity
+          target: child.material.envMapIntensity,
         });
       }
     });
@@ -580,7 +615,7 @@ gltfLoader.load(
       on: true, // room lights on
       roomLights: [
         { light: ambientLight, onIntensity: 0.5, current: 0.5, target: 0.5 },
-        { light: sunLight, onIntensity: 3.2, current: 3.2, target: 3.2 },
+        { light: sunLight, onIntensity: 2.2, current: 2.2, target: 2.2 },
       ],
       practicalLights: [
         // These turn ON when room lights are OFF
@@ -590,33 +625,33 @@ gltfLoader.load(
         { light: sconceLeft, onIntensity: 5, current: 0, target: 0 },
         { light: sconceRight, onIntensity: 5, current: 0, target: 0 },
       ],
-      materials: allMaterials
+      materials: allMaterials,
     };
 
     // Start with practical lights off
-    window.lightSwitch.practicalLights.forEach(l => l.light.intensity = 0);
+    window.lightSwitch.practicalLights.forEach((l) => (l.light.intensity = 0));
 
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'l' || e.key === 'L') {
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "l" || e.key === "L") {
         window.lightSwitch.on = !window.lightSwitch.on;
         const on = window.lightSwitch.on;
         // Room lights: on when bright
-        window.lightSwitch.roomLights.forEach(l => {
+        window.lightSwitch.roomLights.forEach((l) => {
           l.target = on ? l.onIntensity : 0;
         });
         // Practical lights: on when dark (opposite)
-        window.lightSwitch.practicalLights.forEach(l => {
+        window.lightSwitch.practicalLights.forEach((l) => {
           l.target = on ? 0 : l.onIntensity;
         });
         // Materials envMapIntensity: high when bright, low when dark
-        window.lightSwitch.materials.forEach(m => {
+        window.lightSwitch.materials.forEach((m) => {
           m.target = on ? m.onIntensity : m.offIntensity;
         });
-        console.log('Room lights:', on ? 'ON' : 'OFF');
+        console.log("Room lights:", on ? "ON" : "OFF");
       }
     });
 
-    console.log('Lighting setup complete');
+    console.log("Lighting setup complete");
 
     // ============ LIGHT HELPERS (for positioning) ============
     // Press 'H' to toggle helpers
@@ -664,20 +699,20 @@ gltfLoader.load(
     helpers.push(shadowCameraHelper);
 
     // Hide helpers by default
-    helpers.forEach(helper => helper.visible = false);
+    helpers.forEach((helper) => (helper.visible = false));
 
     // Toggle helpers with 'H' key
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'h' || e.key === 'H') {
-        helpers.forEach(helper => helper.visible = !helper.visible);
-        console.log('Helpers:', helpers[0].visible ? 'ON' : 'OFF');
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "h" || e.key === "H") {
+        helpers.forEach((helper) => (helper.visible = !helper.visible));
+        console.log("Helpers:", helpers[0].visible ? "ON" : "OFF");
       }
     });
 
     // Hide loading screen
-    loadingElement.classList.add('hidden');
+    loadingElement.classList.add("hidden");
 
-    console.log('Model loaded successfully');
+    console.log("Model loaded successfully");
   },
   (progress) => {
     if (progress.total > 0) {
@@ -687,14 +722,14 @@ gltfLoader.load(
     }
   },
   (error) => {
-    console.error('Error loading model:', error);
-    progressText.textContent = 'Error loading model';
-    progressText.style.color = '#ff4444';
-  }
+    console.error("Error loading model:", error);
+    progressText.textContent = "Error loading model";
+    progressText.style.color = "#ff4444";
+  },
 );
 
 // Handle window resize
-window.addEventListener('resize', () => {
+window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -710,15 +745,17 @@ function animate() {
   stats.update();
 
   // Camera mode handling
-  if (cameraConfig.mode === 'mouse') {
+  if (cameraConfig.mode === "mouse") {
     // Smooth mouse-follow camera - look at where mouse is pointing
     const lerpSpeed = 1 - Math.pow(0.001, delta);
     mouseCurrent.x += (mouseTarget.x - mouseCurrent.x) * lerpSpeed;
     mouseCurrent.y += (mouseTarget.y - mouseCurrent.y) * lerpSpeed;
 
     if (cameraLookCenter.length() > 0) {
-      const targetLookX = cameraLookCenter.x + mouseCurrent.x * cameraLookRange.x;
-      const targetLookY = cameraLookCenter.y + mouseCurrent.y * cameraLookRange.y;
+      const targetLookX =
+        cameraLookCenter.x + mouseCurrent.x * cameraLookRange.x;
+      const targetLookY =
+        cameraLookCenter.y + mouseCurrent.y * cameraLookRange.y;
 
       cameraLookCurrent.x += (targetLookX - cameraLookCurrent.x) * lerpSpeed;
       cameraLookCurrent.y += (targetLookY - cameraLookCurrent.y) * lerpSpeed;
