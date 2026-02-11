@@ -9,42 +9,42 @@ import Stats from "three/addons/libs/stats.module.js";
 
 // ============ PCSS SOFT SHADOWS (like Drei's SoftShadows) ============
 const pcssConfig = {
-  size: 10, // Light size - larger = softer shadows
-  samples: 6, // Quality - more samples = smoother but slower
+  size: 25, // Light size - larger = softer shadows
+  samples: 10, // Quality - more samples = smoother but slower
   focus: 0, // Focus point - 0 = auto
 };
 window.pcssConfig = pcssConfig;
 
 // ============ SUN CYCLE CONFIG ============
 const sunCycleConfig = {
-  sunrise: 6,    // 6 AM
-  sunset: 18,    // 6 PM
+  sunrise: 6, // 6 AM
+  sunset: 19, // 7 PM
   center: new THREE.Vector3(5, 0, 2),
-  radius: 25,
+  radius: 20,
 };
 
 // Sun cycle runtime state
 const sunCycle = {
-  override: false,    // true when user pressed L to manually override
-  lastUpdate: 0,      // timestamp of last sun recalc
-  isNight: false,      // current day/night state
+  override: false, // true when user pressed L to manually override
+  lastUpdate: 0, // timestamp of last sun recalc
+  isNight: false, // current day/night state
   targetPosition: new THREE.Vector3(19, 10, -6),
-  targetIntensity: 6,
+  targetIntensity: 8,
   targetColor: new THREE.Color(0xffb770),
   currentPosition: new THREE.Vector3(19, 10, -6),
-  currentIntensity: 6,
+  currentIntensity: 8,
   currentColor: new THREE.Color(0xffb770),
   // Sim controls
-  sim: false,         // true when using simulated time
-  simHour: 12,        // current simulated decimal hour
-  simSpeed: 0,        // multiplier: 0 = paused (slider-only), 60/360/etc = fast-forward
+  sim: false, // true when using simulated time
+  simHour: 12, // current simulated decimal hour
+  simSpeed: 0, // multiplier: 0 = paused (slider-only), 60/360/etc = fast-forward
 };
 
 // Color temperature keyframes
 const sunColors = {
-  dawn:    new THREE.Color(0xFF6B35),  // deep orange
-  morning: new THREE.Color(0xFFB770),  // warm (current color)
-  noon:    new THREE.Color(0xFFF4E0),  // near-white warm
+  dawn: new THREE.Color(0xff8c42), // rich warm orange
+  morning: new THREE.Color(0xffb770), // warm (current color)
+  noon: new THREE.Color(0xfff4e0), // near-white warm
 };
 
 /**
@@ -54,8 +54,8 @@ const sunColors = {
  */
 function getSunPosition(hour) {
   const { sunrise, sunset, center, radius } = sunCycleConfig;
-  const dawnDuration = 1;   // 1 hour ramp at dawn
-  const duskDuration = 1;   // 1 hour ramp at dusk
+  const dawnDuration = 2; // 2 hour ramp at dawn — longer warm glow
+  const duskDuration = 2; // 2 hour ramp at dusk
 
   // Default: night
   let intensity = 0;
@@ -65,47 +65,50 @@ function getSunPosition(hour) {
   if (hour >= sunrise && hour <= sunset) {
     // Map sunrise→sunset to 0→PI
     const t = (hour - sunrise) / (sunset - sunrise); // 0..1
-    const angle = t * Math.PI; // 0..PI
 
-    // Sun arc: sweeps from one side of window to other, rising and falling
-    // x stays on the +x side (window side), y rises/falls, z sweeps across
+    // Bias t so the sun lingers in the morning/low-angle zone longer.
+    // Power < 1 stretches early values (morning) and compresses late (afternoon).
+    const biasedT = Math.pow(t, 0.8);
+    const angle = biasedT * Math.PI; // 0..PI
+
+    // Sun arc: comes from the front of the room (like a garage door / storefront).
+    // The front of the room is roughly +z direction.
+    // x sweeps side to side, y rises/falls, z stays out in front.
     position.set(
-      center.x + radius * 0.6,                    // stay outside room on window side
-      center.y + radius * Math.sin(angle),         // rises at noon, low at dawn/dusk
-      center.z + radius * Math.cos(angle) * 0.8    // sweeps across
+      center.x + radius * Math.cos(angle) * 0.1, // sweeps left-to-right across front
+      center.y + radius * Math.sin(angle) * 0.6, // lower arc — more raking angle
+      center.z + radius * 0.7, // stays out in front of room
     );
 
     // Intensity ramp at dawn/dusk edges
-    const dayLength = sunset - sunrise;
     const hoursFromSunrise = hour - sunrise;
     const hoursFromSunset = sunset - hour;
 
     if (hoursFromSunrise < dawnDuration) {
-      // Dawn ramp: 0→1 over dawnDuration
       intensity = 6 * smoothstep(hoursFromSunrise / dawnDuration);
     } else if (hoursFromSunset < duskDuration) {
-      // Dusk ramp: 1→0 over duskDuration
       intensity = 6 * smoothstep(hoursFromSunset / duskDuration);
     } else {
       intensity = 6;
     }
 
-    // Color temperature: orange at edges, warm-white at noon
-    // elevation factor: 0 at horizon, 1 at zenith
-    const elevation = Math.sin(angle); // 0..1..0
-    if (elevation < 0.3) {
-      // Dawn/dusk zone: deep orange → morning warm
-      const ct = elevation / 0.3;
-      color.copy(sunColors.dawn).lerp(sunColors.morning, ct);
+    // Color temperature: stay warm most of the day.
+    // elevation 0..1..0 over the arc
+    const elevation = Math.sin(angle);
+    if (elevation < 0.4) {
+      // Dawn/dusk zone: rich warm orange → morning warm (wider zone)
+      const ct = elevation / 0.4;
+      color.copy(sunColors.dawn).lerp(sunColors.morning, smoothstep(ct));
     } else {
-      // Morning/afternoon → noon: warm → near-white
-      const ct = (elevation - 0.3) / 0.7;
-      color.copy(sunColors.morning).lerp(sunColors.noon, ct);
+      // Rest of day: mostly morning-warm, barely touching noon-white
+      const ct = (elevation - 0.4) / 0.6; // 0..1
+      const gentleCt = Math.pow(ct, 2.5); // stays warm even longer
+      color.copy(sunColors.morning).lerp(sunColors.noon, gentleCt * 0.35); // cap at 35% toward noon
     }
   } else {
     // Night: below horizon
     intensity = 0;
-    position.set(center.x + radius * 0.6, -5, center.z);
+    position.set(center.x, -5, center.z + radius * 0.7);
     color.copy(sunColors.dawn);
   }
 
@@ -458,16 +461,27 @@ gltfLoader.load(
       // Match the main model rotation
       roomModel.rotation.y = -1.1;
 
-      // Enable shadows on room meshes
+      // Room shell receives shadows but doesn't cast them
+      // (prevents the ceiling edge from casting a hard line on the back wall)
       roomModel.traverse((child) => {
         if (child.isMesh) {
           child.receiveShadow = true;
-          child.castShadow = true;
+          child.castShadow = false;
           if (child.material) {
             child.material.envMapIntensity = 0.9;
           }
         }
       });
+
+      // Log room mesh names for reference
+      const roomMats = {};
+      roomModel.traverse((child) => {
+        if (child.isMesh && child.material) {
+          roomMats[child.name] = child.material;
+        }
+      });
+      window.roomMaterials = roomMats;
+      console.log("Room mesh names:", Object.keys(roomMats));
 
       scene.add(roomModel);
 
@@ -478,10 +492,6 @@ gltfLoader.load(
 
       window.roomModel = roomModel;
       window.roomToggle.newRoomModel = roomModel;
-      console.log(
-        "New room model loaded. Adjust with: roomModel.position.set(x, y, z)",
-      );
-      console.log("Press R to toggle between old/new room");
 
       // Add room materials to light switch system if already initialized
       if (window.lightSwitch) {
@@ -677,15 +687,15 @@ gltfLoader.load(
     scene.add(sunLight.target);
     sunLight.castShadow = true;
 
-    // Shadow settings — tight frustum around room for sharp window shadows
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
+    // Shadow settings — wide frustum to cover entire room without clipping
+    sunLight.shadow.mapSize.width = 4096;
+    sunLight.shadow.mapSize.height = 4096;
     sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 50;
-    sunLight.shadow.camera.left = -15;
-    sunLight.shadow.camera.right = 15;
-    sunLight.shadow.camera.top = 15;
-    sunLight.shadow.camera.bottom = -15;
+    sunLight.shadow.camera.far = 120;
+    sunLight.shadow.camera.left = -50;
+    sunLight.shadow.camera.right = 50;
+    sunLight.shadow.camera.top = 50;
+    sunLight.shadow.camera.bottom = -50;
     sunLight.shadow.bias = -0.0001;
     // PCSS handles shadow softness via pcssConfig.size
 
@@ -734,7 +744,8 @@ gltfLoader.load(
     // Initialize sun cycle state based on current time
     {
       const date = new Date();
-      const currentHour = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+      const currentHour =
+        date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
       const sun = getSunPosition(currentHour);
 
       sunCycle.targetPosition.copy(sun.position);
@@ -771,7 +782,9 @@ gltfLoader.load(
         });
       } else {
         // Day: practical lights off
-        window.lightSwitch.practicalLights.forEach((l) => (l.light.intensity = 0));
+        window.lightSwitch.practicalLights.forEach(
+          (l) => (l.light.intensity = 0),
+        );
       }
     }
 
@@ -892,7 +905,8 @@ function activateSim(speed) {
   const date = new Date();
   if (!sunCycle.sim) {
     // Starting sim — seed from current real time
-    sunCycle.simHour = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+    sunCycle.simHour =
+      date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
   }
   sunCycle.sim = true;
   sunCycle.simSpeed = speed;
@@ -910,13 +924,20 @@ function deactivateSim() {
 }
 
 function updateSimButtons() {
-  document.querySelectorAll(".sim-btn").forEach((btn) => btn.classList.remove("active"));
+  document
+    .querySelectorAll(".sim-btn")
+    .forEach((btn) => btn.classList.remove("active"));
   if (!sunCycle.sim) {
     const resetBtn = document.getElementById("sim-reset");
     if (resetBtn) resetBtn.classList.add("active");
     return;
   }
-  const speedMap = { 0: "sim-speed-0", 1: "sim-speed-1", 6: "sim-speed-6", 24: "sim-speed-24" };
+  const speedMap = {
+    0: "sim-speed-0",
+    1: "sim-speed-1",
+    6: "sim-speed-6",
+    24: "sim-speed-24",
+  };
   const activeId = speedMap[sunCycle.simSpeed];
   if (activeId) {
     const btn = document.getElementById(activeId);
@@ -934,11 +955,21 @@ if (timeSlider) {
 }
 
 // Speed buttons
-document.getElementById("sim-speed-0")?.addEventListener("click", () => activateSim(0));
-document.getElementById("sim-speed-1")?.addEventListener("click", () => activateSim(1));
-document.getElementById("sim-speed-6")?.addEventListener("click", () => activateSim(6));
-document.getElementById("sim-speed-24")?.addEventListener("click", () => activateSim(24));
-document.getElementById("sim-reset")?.addEventListener("click", () => deactivateSim());
+document
+  .getElementById("sim-speed-0")
+  ?.addEventListener("click", () => activateSim(0));
+document
+  .getElementById("sim-speed-1")
+  ?.addEventListener("click", () => activateSim(1));
+document
+  .getElementById("sim-speed-6")
+  ?.addEventListener("click", () => activateSim(6));
+document
+  .getElementById("sim-speed-24")
+  ?.addEventListener("click", () => activateSim(24));
+document
+  .getElementById("sim-reset")
+  ?.addEventListener("click", () => deactivateSim());
 
 // Mark "Live" as active by default
 updateSimButtons();
@@ -978,7 +1009,7 @@ function animate() {
   // ============ SUN CYCLE UPDATE ============
   // Advance sim time each frame when speed > 0
   if (sunCycle.sim && sunCycle.simSpeed > 0) {
-    sunCycle.simHour += delta * sunCycle.simSpeed / 60; // simSpeed = hours per real-minute, delta in seconds
+    sunCycle.simHour += (delta * sunCycle.simSpeed) / 60; // simSpeed = hours per real-minute, delta in seconds
     if (sunCycle.simHour >= 24) sunCycle.simHour -= 24;
     if (sunCycle.simHour < 0) sunCycle.simHour += 24;
     // Update slider to match
@@ -997,7 +1028,8 @@ function animate() {
         currentHour = sunCycle.simHour;
       } else {
         const date = new Date();
-        currentHour = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+        currentHour =
+          date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
       }
       const sun = getSunPosition(currentHour);
 
@@ -1067,7 +1099,8 @@ function animate() {
   if (window.sunLight && !sunCycle.override) {
     const sunLerp = 1 - Math.pow(0.05, delta); // Smoother, slower transition for sun
     sunCycle.currentPosition.lerp(sunCycle.targetPosition, sunLerp);
-    sunCycle.currentIntensity += (sunCycle.targetIntensity - sunCycle.currentIntensity) * sunLerp;
+    sunCycle.currentIntensity +=
+      (sunCycle.targetIntensity - sunCycle.currentIntensity) * sunLerp;
     sunCycle.currentColor.lerp(sunCycle.targetColor, sunLerp);
 
     window.sunLight.position.copy(sunCycle.currentPosition);
