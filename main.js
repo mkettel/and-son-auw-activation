@@ -251,10 +251,28 @@ const cameraLookCenter = new THREE.Vector3();
 const cameraLookCurrent = new THREE.Vector3();
 const cameraLookRange = { x: 2, y: 1 };
 
+// Raycaster for DJ booth hover detection
+const raycaster = new THREE.Raycaster();
+const raycasterMouse = new THREE.Vector2();
+const boothHover = {
+  isHovered: false,
+  glowIntensity: 0,
+  targetIntensity: 0,
+  glowColor: new THREE.Color(0xcc8844),
+  maxEmissiveIntensity: 0.05,
+  mesh: null,
+  particles: null,
+  decal: null,
+  originalEmissive: new THREE.Color(),
+  originalEmissiveIntensity: 0,
+};
+
 // Track mouse position (normalized -1 to 1)
 window.addEventListener("mousemove", (e) => {
   mouseTarget.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouseTarget.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycasterMouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  raycasterMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 });
 
 // OrbitControls setup
@@ -551,6 +569,96 @@ gltfLoader.load(
     // ============ DECAL (AUW Logo) on DJ Booth ============
     const boothMesh = model.getObjectByName("BOOTH_DJ");
     if (boothMesh) {
+      // Store booth mesh ref + original emissive for hover glow
+      boothHover.mesh = boothMesh;
+      if (boothMesh.material) {
+        boothHover.originalEmissive.copy(boothMesh.material.emissive);
+        boothHover.originalEmissiveIntensity =
+          boothMesh.material.emissiveIntensity;
+      }
+
+      // ---- Dust mote particles around DJ booth ----
+      const boothBox = new THREE.Box3().setFromObject(boothMesh);
+      const boothSize = boothBox.getSize(new THREE.Vector3());
+      const boothCenter = boothBox.getCenter(new THREE.Vector3());
+      const pad = 0.3;
+      const particleCount = 40;
+
+      const positions = new Float32Array(particleCount * 3);
+      const velocities = new Float32Array(particleCount * 3);
+      const sizes = new Float32Array(particleCount);
+      const alphas = new Float32Array(particleCount);
+      const phases = new Float32Array(particleCount);
+      for (let i = 0; i < particleCount; i++) {
+        const i3 = i * 3;
+        positions[i3] =
+          boothCenter.x + (Math.random() - 0.5) * (boothSize.x + pad * 2);
+        positions[i3 + 1] =
+          boothCenter.y + (Math.random() - 0.5) * (boothSize.y + pad * 2);
+        positions[i3 + 2] =
+          boothCenter.z + (Math.random() - 0.5) * (boothSize.z + pad * 2);
+        velocities[i3] = (Math.random() - 0.5) * 0.02;
+        velocities[i3 + 1] = 0.1 + Math.random() * 0.1;
+        velocities[i3 + 2] = (Math.random() - 0.5) * 0.02;
+        sizes[i] = 0.1 + Math.random() * 0.12;
+        alphas[i] = 0;
+        phases[i] = Math.random() * Math.PI * 2;
+      }
+
+      const particleGeom = new THREE.BufferGeometry();
+      particleGeom.setAttribute(
+        "position",
+        new THREE.BufferAttribute(positions, 3),
+      );
+      particleGeom.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
+      particleGeom.setAttribute("aAlpha", new THREE.BufferAttribute(alphas, 1));
+
+      const particleMat = new THREE.ShaderMaterial({
+        uniforms: {
+          uColor: { value: new THREE.Color(0xcc8844) },
+          uGlobalOpacity: { value: 0 },
+        },
+        vertexShader: `
+          attribute float aSize;
+          attribute float aAlpha;
+          varying float vAlpha;
+          void main() {
+            vAlpha = aAlpha;
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            gl_PointSize = max(aSize * (800.0 / -mv.z), 1.0);
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 uColor;
+          uniform float uGlobalOpacity;
+          varying float vAlpha;
+          void main() {
+            float d = length(gl_PointCoord - vec2(0.5));
+            if (d > 0.5) discard;
+            float soft = 1.0 - smoothstep(0.05, 0.5, d);
+            float a = soft * vAlpha * uGlobalOpacity;
+            gl_FragColor = vec4(uColor, a);
+          }
+        `,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+
+      const points = new THREE.Points(particleGeom, particleMat);
+      scene.add(points);
+      boothHover.particles = points;
+      boothHover._particleVelocities = velocities;
+      boothHover._particlePhases = phases;
+      boothHover._boothBounds = {
+        minY: boothCenter.y - boothSize.y / 2 - pad,
+        maxY: boothCenter.y + boothSize.y / 2 + pad,
+        center: boothCenter.clone(),
+        size: boothSize.clone(),
+        pad,
+      };
+
       const textureLoader = new THREE.TextureLoader();
       textureLoader.load("/textures/test-decal.png", (texture) => {
         texture.colorSpace = THREE.SRGBColorSpace;
@@ -576,6 +684,9 @@ gltfLoader.load(
         decal.position.y += -2.0;
         decal.scale.set(0.6, 0.6, 1);
         scene.add(decal);
+
+        // Store decal ref for hover detection
+        boothHover.decal = decal;
 
         window.decal = decal;
         window.boothMesh = boothMesh;
@@ -1109,6 +1220,87 @@ function animate() {
 
     // Update shadow camera to follow sun
     window.sunLight.shadow.camera.updateProjectionMatrix();
+  }
+
+  // ============ DJ BOOTH HOVER GLOW ============
+  if (boothHover.mesh) {
+    // Raycast against booth mesh + decal
+    raycaster.setFromCamera(raycasterMouse, camera);
+    const hoverTargets = [boothHover.mesh];
+    if (boothHover.decal) hoverTargets.push(boothHover.decal);
+    const intersects = raycaster.intersectObjects(hoverTargets, false);
+    const hoveredNow = intersects.length > 0;
+
+    // On hover state change
+    if (hoveredNow !== boothHover.isHovered) {
+      boothHover.isHovered = hoveredNow;
+      boothHover.targetIntensity = hoveredNow ? 1 : 0;
+      document.body.style.cursor = hoveredNow ? "pointer" : "";
+    }
+
+    // Lerp glow intensity (frame-rate independent, ~0.3s transition)
+    const glowLerp = 1 - Math.pow(0.02, delta);
+    boothHover.glowIntensity +=
+      (boothHover.targetIntensity - boothHover.glowIntensity) * glowLerp;
+
+    // Apply emissive glow to booth material
+    const mat = boothHover.mesh.material;
+    if (mat) {
+      const t = boothHover.glowIntensity;
+      mat.emissiveIntensity =
+        boothHover.originalEmissiveIntensity +
+        t * boothHover.maxEmissiveIntensity;
+      mat.emissive
+        .copy(boothHover.originalEmissive)
+        .lerp(boothHover.glowColor, t);
+    }
+
+    // ---- Animate dust mote particles ----
+    if (boothHover.particles && boothHover.glowIntensity > 0.01) {
+      const pts = boothHover.particles;
+      const posArr = pts.geometry.attributes.position.array;
+      const alphaArr = pts.geometry.attributes.aAlpha.array;
+      const vel = boothHover._particleVelocities;
+      const ph = boothHover._particlePhases;
+      const bounds = boothHover._boothBounds;
+      const elapsed = clock.getElapsedTime();
+
+      pts.material.uniforms.uGlobalOpacity.value = boothHover.glowIntensity;
+
+      const count = posArr.length / 3;
+      for (let i = 0; i < count; i++) {
+        const i3 = i * 3;
+        // Per-particle fade: slow sine pulse with unique phase
+        const fade = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(elapsed * 0.8 + ph[i]));
+        alphaArr[i] = fade;
+
+        // Drift upward
+        posArr[i3 + 1] += vel[i3 + 1] * delta;
+        // Layered sine noise on x and z for organic wobble
+        posArr[i3] +=
+          Math.sin(elapsed * 1.5 + i * 0.7) * 0.004 +
+          Math.sin(elapsed * 0.6 + i * 2.3) * 0.002;
+        posArr[i3 + 2] +=
+          Math.cos(elapsed * 1.2 + i * 0.9) * 0.004 +
+          Math.cos(elapsed * 0.7 + i * 1.8) * 0.002;
+
+        // Wrap to bottom when exceeding top
+        if (posArr[i3 + 1] > bounds.maxY) {
+          posArr[i3 + 1] = bounds.minY;
+          posArr[i3] =
+            bounds.center.x +
+            (Math.random() - 0.5) * (bounds.size.x + bounds.pad * 2);
+          posArr[i3 + 2] =
+            bounds.center.z +
+            (Math.random() - 0.5) * (bounds.size.z + bounds.pad * 2);
+          ph[i] = Math.random() * Math.PI * 2; // new phase on respawn
+        }
+      }
+      pts.geometry.attributes.position.needsUpdate = true;
+      pts.geometry.attributes.aAlpha.needsUpdate = true;
+    } else if (boothHover.particles) {
+      boothHover.particles.material.uniforms.uGlobalOpacity.value = 0;
+    }
   }
 
   renderer.render(scene, camera);
