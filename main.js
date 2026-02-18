@@ -259,9 +259,8 @@ const boothHover = {
   glowIntensity: 0,
   targetIntensity: 0,
   glowColor: new THREE.Color(0xcc8844),
-  maxEmissiveIntensity: 0.05,
+  maxEmissiveIntensity: 0.00001,
   mesh: null,
-  particles: null,
   decal: null,
   originalEmissive: new THREE.Color(),
   originalEmissiveIntensity: 0,
@@ -283,7 +282,12 @@ const focusTargets = {
     viewDistance: 7.5,
     lerpBase: 0.008,
   },
-  // Add more targets here as needed
+  BOOTH_DJ: {
+    // Explicit camera placement — tune these in console then paste back
+    cameraPosition: new THREE.Vector3(10, 4.5, 16),
+    cameraLookAt: new THREE.Vector3(19, 4.5, 0),
+    lerpBase: 0.008,
+  },
 };
 
 // Focus mode state
@@ -371,19 +375,22 @@ function computeFocusCamera(mesh, config) {
 
 /** Enter focus mode — lerp camera to viewing position in front of mesh */
 function enterFocusMode(mesh, config) {
+  // Use the primary focus mesh if specified (e.g. decal → booth)
+  const targetMesh = config.focusMesh || mesh;
+
   // Save return targets
   cameraFocus.returnPosition.copy(camera.position);
   cameraFocus.returnLookAt.copy(cameraLookCurrent);
 
   // Compute focus targets
-  const { position, lookAt } = computeFocusCamera(mesh, config);
+  const { position, lookAt } = computeFocusCamera(targetMesh, config);
   cameraFocus.targetPosition.copy(position);
   cameraFocus.targetLookAt.copy(lookAt);
   cameraFocus.lerpBase = config.lerpBase;
-  cameraFocus.meshName = mesh.name;
+  cameraFocus.meshName = targetMesh.name;
 
   // Debug: log computed positions so you can tune or switch to explicit mode
-  console.log(`Focus → ${mesh.name}`);
+  console.log(`Focus → ${targetMesh.name}`);
   console.log(
     `  center:`,
     lookAt.toArray().map((v) => +v.toFixed(2)),
@@ -394,7 +401,7 @@ function enterFocusMode(mesh, config) {
   );
   console.log(
     `  normal:`,
-    getMeshWorldNormal(mesh)
+    getMeshWorldNormal(targetMesh)
       .toArray()
       .map((v) => +v.toFixed(2)),
   );
@@ -794,88 +801,6 @@ gltfLoader.load(
           boothMesh.material.emissiveIntensity;
       }
 
-      // ---- Dust mote particles around DJ booth ----
-      const boothBox = new THREE.Box3().setFromObject(boothMesh);
-      const boothSize = boothBox.getSize(new THREE.Vector3());
-      const boothCenter = boothBox.getCenter(new THREE.Vector3());
-      const pad = 0.3;
-      const particleCount = 40;
-
-      const positions = new Float32Array(particleCount * 3);
-      const velocities = new Float32Array(particleCount * 3);
-      const sizes = new Float32Array(particleCount);
-      const alphas = new Float32Array(particleCount);
-      const phases = new Float32Array(particleCount);
-      for (let i = 0; i < particleCount; i++) {
-        const i3 = i * 3;
-        positions[i3] =
-          boothCenter.x + (Math.random() - 0.5) * (boothSize.x + pad * 2);
-        positions[i3 + 1] =
-          boothCenter.y + (Math.random() - 0.5) * (boothSize.y + pad * 2);
-        positions[i3 + 2] =
-          boothCenter.z + (Math.random() - 0.5) * (boothSize.z + pad * 2);
-        velocities[i3] = (Math.random() - 0.5) * 0.02;
-        velocities[i3 + 1] = 0.1 + Math.random() * 0.1;
-        velocities[i3 + 2] = (Math.random() - 0.5) * 0.02;
-        sizes[i] = 0.1 + Math.random() * 0.12;
-        alphas[i] = 0;
-        phases[i] = Math.random() * Math.PI * 2;
-      }
-
-      const particleGeom = new THREE.BufferGeometry();
-      particleGeom.setAttribute(
-        "position",
-        new THREE.BufferAttribute(positions, 3),
-      );
-      particleGeom.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
-      particleGeom.setAttribute("aAlpha", new THREE.BufferAttribute(alphas, 1));
-
-      const particleMat = new THREE.ShaderMaterial({
-        uniforms: {
-          uColor: { value: new THREE.Color(0xcc8844) },
-          uGlobalOpacity: { value: 0 },
-        },
-        vertexShader: `
-          attribute float aSize;
-          attribute float aAlpha;
-          varying float vAlpha;
-          void main() {
-            vAlpha = aAlpha;
-            vec4 mv = modelViewMatrix * vec4(position, 1.0);
-            gl_PointSize = max(aSize * (800.0 / -mv.z), 1.0);
-            gl_Position = projectionMatrix * mv;
-          }
-        `,
-        fragmentShader: `
-          uniform vec3 uColor;
-          uniform float uGlobalOpacity;
-          varying float vAlpha;
-          void main() {
-            float d = length(gl_PointCoord - vec2(0.5));
-            if (d > 0.5) discard;
-            float soft = 1.0 - smoothstep(0.05, 0.5, d);
-            float a = soft * vAlpha * uGlobalOpacity;
-            gl_FragColor = vec4(uColor, a);
-          }
-        `,
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      });
-
-      const points = new THREE.Points(particleGeom, particleMat);
-      scene.add(points);
-      boothHover.particles = points;
-      boothHover._particleVelocities = velocities;
-      boothHover._particlePhases = phases;
-      boothHover._boothBounds = {
-        minY: boothCenter.y - boothSize.y / 2 - pad,
-        maxY: boothCenter.y + boothSize.y / 2 + pad,
-        center: boothCenter.clone(),
-        size: boothSize.clone(),
-        pad,
-      };
-
       const textureLoader = new THREE.TextureLoader();
       textureLoader.load("/textures/test-decal.png", (texture) => {
         texture.colorSpace = THREE.SRGBColorSpace;
@@ -905,11 +830,27 @@ gltfLoader.load(
         // Store decal ref for hover detection
         boothHover.decal = decal;
 
+        // Register decal as a click target so clicking the logo also focuses the booth
+        const boothConfig = focusTargets.BOOTH_DJ;
+        if (boothConfig && boothMesh) {
+          focusMeshMap.set(decal, { ...boothConfig, focusMesh: boothMesh });
+          focusMeshList.push(decal);
+        }
+
         window.decal = decal;
         window.boothMesh = boothMesh;
-        console.log("Decal placed on BOOTH_DJ at:", center);
+        console.log(
+          "Decal placed on BOOTH_DJ at:",
+          center.toArray().map((v) => +v.toFixed(2)),
+        );
         console.log("Adjust with: decal.position.set(x, y, z)");
         console.log("Resize with: decal.scale.set(w, h, 1)");
+        console.log(
+          "Booth focus tuning — paste camera.position and cameraLookCurrent into focusTargets.BOOTH_DJ",
+        );
+        console.log(
+          "  Use: camera.position.toArray() and cameraLookCurrent.toArray() while viewing the booth",
+        );
       });
     }
 
@@ -927,6 +868,9 @@ gltfLoader.load(
         focusMeshMap.set(mesh, config);
         focusMeshList.push(mesh);
         console.log(`Focus target resolved: ${meshName}`);
+
+        // Skip video plane for non-frame targets
+        if (!meshName.startsWith("FRAME")) continue;
 
         // Create a video plane overlaying the frame's canvas area
         const frameBox = new THREE.Box3().setFromObject(mesh);
@@ -1554,53 +1498,6 @@ function animate() {
       mat.emissive
         .copy(boothHover.originalEmissive)
         .lerp(boothHover.glowColor, t);
-    }
-
-    // ---- Animate dust mote particles ----
-    if (boothHover.particles && boothHover.glowIntensity > 0.01) {
-      const pts = boothHover.particles;
-      const posArr = pts.geometry.attributes.position.array;
-      const alphaArr = pts.geometry.attributes.aAlpha.array;
-      const vel = boothHover._particleVelocities;
-      const ph = boothHover._particlePhases;
-      const bounds = boothHover._boothBounds;
-      const elapsed = clock.getElapsedTime();
-
-      pts.material.uniforms.uGlobalOpacity.value = boothHover.glowIntensity;
-
-      const count = posArr.length / 3;
-      for (let i = 0; i < count; i++) {
-        const i3 = i * 3;
-        // Per-particle fade: slow sine pulse with unique phase
-        const fade = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(elapsed * 0.8 + ph[i]));
-        alphaArr[i] = fade;
-
-        // Drift upward
-        posArr[i3 + 1] += vel[i3 + 1] * delta;
-        // Layered sine noise on x and z for organic wobble
-        posArr[i3] +=
-          Math.sin(elapsed * 1.5 + i * 0.7) * 0.004 +
-          Math.sin(elapsed * 0.6 + i * 2.3) * 0.002;
-        posArr[i3 + 2] +=
-          Math.cos(elapsed * 1.2 + i * 0.9) * 0.004 +
-          Math.cos(elapsed * 0.7 + i * 1.8) * 0.002;
-
-        // Wrap to bottom when exceeding top
-        if (posArr[i3 + 1] > bounds.maxY) {
-          posArr[i3 + 1] = bounds.minY;
-          posArr[i3] =
-            bounds.center.x +
-            (Math.random() - 0.5) * (bounds.size.x + bounds.pad * 2);
-          posArr[i3 + 2] =
-            bounds.center.z +
-            (Math.random() - 0.5) * (bounds.size.z + bounds.pad * 2);
-          ph[i] = Math.random() * Math.PI * 2; // new phase on respawn
-        }
-      }
-      pts.geometry.attributes.position.needsUpdate = true;
-      pts.geometry.attributes.aAlpha.needsUpdate = true;
-    } else if (boothHover.particles) {
-      boothHover.particles.material.uniforms.uGlobalOpacity.value = 0;
     }
   }
 
