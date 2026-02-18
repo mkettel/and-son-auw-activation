@@ -267,6 +267,188 @@ const boothHover = {
   originalEmissiveIntensity: 0,
 };
 
+// ============ CLICK-TO-FOCUS CAMERA SYSTEM ============
+// Declarative map of clickable mesh names → camera behavior
+// Each target can use EITHER:
+//   cameraPosition + cameraLookAt  — explicit world-space coords (full control)
+//   viewOffset + viewDistance       — auto-computed from mesh bounding box
+// viewDistance only → auto-computes perpendicular view from mesh face normal
+// cameraPosition + cameraLookAt → explicit world-space override
+const focusTargets = {
+  FRAME_LEFT_1: {
+    viewDistance: 7.5,
+    lerpBase: 0.008,
+  },
+  FRAME_LEFT_2: {
+    viewDistance: 7.5,
+    lerpBase: 0.008,
+  },
+  // Add more targets here as needed
+};
+
+// Focus mode state
+const cameraFocus = {
+  active: false,
+  transitioning: false,
+  meshName: null,
+  targetPosition: new THREE.Vector3(),
+  targetLookAt: new THREE.Vector3(),
+  returnPosition: new THREE.Vector3(),
+  returnLookAt: new THREE.Vector3(),
+  lerpBase: 0.003,
+  previousCameraMode: null,
+};
+const focusMeshMap = new Map(); // Mesh → config (populated after model loads)
+const focusMeshList = []; // flat array for raycaster
+
+// Close button reference
+const focusCloseBtn = document.getElementById("focus-close-btn");
+
+// ============ VIDEO TEXTURE FOR FRAMES ============
+const videoEl = document.createElement("video");
+videoEl.src = "/videos/and-son-video.mp4";
+videoEl.crossOrigin = "anonymous";
+videoEl.loop = true;
+videoEl.muted = true; // muted so autoplay works; unmute after first interaction if needed
+videoEl.playsInline = true;
+videoEl.preload = "auto";
+
+const videoTexture = new THREE.VideoTexture(videoEl);
+videoTexture.colorSpace = THREE.SRGBColorSpace;
+videoTexture.minFilter = THREE.LinearFilter;
+videoTexture.magFilter = THREE.LinearFilter;
+
+// Map mesh name → video plane (populated after model loads)
+const videoPlanes = new Map();
+
+/** Get the dominant face normal of a mesh in world space */
+function getMeshWorldNormal(mesh) {
+  const geometry = mesh.geometry;
+  if (!geometry) return new THREE.Vector3(0, 0, 1);
+
+  if (!geometry.attributes.normal) geometry.computeVertexNormals();
+  const normalAttr = geometry.attributes.normal;
+
+  // Average vertex normals to find dominant face direction
+  const avg = new THREE.Vector3();
+  const count = Math.min(normalAttr.count, 100);
+  for (let i = 0; i < count; i++) {
+    avg.x += normalAttr.getX(i);
+    avg.y += normalAttr.getY(i);
+    avg.z += normalAttr.getZ(i);
+  }
+  avg.normalize();
+
+  // Transform from local to world space
+  const worldQuat = new THREE.Quaternion();
+  mesh.getWorldQuaternion(worldQuat);
+  avg.applyQuaternion(worldQuat);
+
+  return avg;
+}
+
+/** Compute where the camera should go when focusing on a mesh */
+function computeFocusCamera(mesh, config) {
+  // Explicit world-space overrides — full control per target
+  if (config.cameraPosition && config.cameraLookAt) {
+    return {
+      position: config.cameraPosition.clone(),
+      lookAt: config.cameraLookAt.clone(),
+    };
+  }
+
+  // Auto-compute: perpendicular to mesh face at viewDistance
+  const box = new THREE.Box3().setFromObject(mesh);
+  const center = box.getCenter(new THREE.Vector3());
+  const normal = getMeshWorldNormal(mesh);
+  const dist = config.viewDistance || 2.0;
+
+  const position = center.clone().add(normal.clone().multiplyScalar(dist));
+  const lookAt = center.clone();
+
+  return { position, lookAt };
+}
+
+/** Enter focus mode — lerp camera to viewing position in front of mesh */
+function enterFocusMode(mesh, config) {
+  // Save return targets
+  cameraFocus.returnPosition.copy(camera.position);
+  cameraFocus.returnLookAt.copy(cameraLookCurrent);
+
+  // Compute focus targets
+  const { position, lookAt } = computeFocusCamera(mesh, config);
+  cameraFocus.targetPosition.copy(position);
+  cameraFocus.targetLookAt.copy(lookAt);
+  cameraFocus.lerpBase = config.lerpBase;
+  cameraFocus.meshName = mesh.name;
+
+  // Debug: log computed positions so you can tune or switch to explicit mode
+  console.log(`Focus → ${mesh.name}`);
+  console.log(
+    `  center:`,
+    lookAt.toArray().map((v) => +v.toFixed(2)),
+  );
+  console.log(
+    `  cameraPos:`,
+    position.toArray().map((v) => +v.toFixed(2)),
+  );
+  console.log(
+    `  normal:`,
+    getMeshWorldNormal(mesh)
+      .toArray()
+      .map((v) => +v.toFixed(2)),
+  );
+
+  // Save and disable OrbitControls
+  cameraFocus.previousCameraMode = cameraConfig.mode;
+  if (cameraConfig.mode === "orbit") {
+    controls.enabled = false;
+  }
+
+  cameraFocus.active = true;
+  cameraFocus.transitioning = true;
+
+  // Show close button
+  if (focusCloseBtn) focusCloseBtn.classList.remove("hidden");
+
+  // Play video if this frame has a video plane
+  if (videoPlanes.has(mesh.name)) {
+    videoEl.currentTime = 0;
+    videoEl.play().catch(() => {});
+  }
+}
+
+/** Exit focus mode — lerp camera back to saved return position */
+function exitFocusMode() {
+  if (!cameraFocus.active && !cameraFocus.transitioning) return;
+
+  cameraFocus.targetPosition.copy(cameraFocus.returnPosition);
+  cameraFocus.targetLookAt.copy(cameraFocus.returnLookAt);
+  cameraFocus.active = false;
+  cameraFocus.transitioning = true;
+
+  // Hide close button
+  if (focusCloseBtn) focusCloseBtn.classList.add("hidden");
+
+  // Pause video
+  videoEl.pause();
+}
+
+/** Called when camera arrives back at return position */
+function finishFocusReturn() {
+  cameraFocus.transitioning = false;
+  cameraFocus.meshName = null;
+
+  // Restore previous camera mode
+  if (cameraFocus.previousCameraMode === "orbit") {
+    cameraConfig.mode = "orbit";
+    controls.target.copy(cameraFocus.returnLookAt);
+    controls.enabled = true;
+    controls.update();
+  }
+  cameraFocus.previousCameraMode = null;
+}
+
 // Track mouse position (normalized -1 to 1)
 window.addEventListener("mousemove", (e) => {
   mouseTarget.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -283,9 +465,11 @@ controls.minDistance = 1;
 controls.maxDistance = 100;
 controls.enabled = false; // Start with mouse mode
 
-// Toggle camera mode with 'C' key
+// Toggle camera mode with 'C' key (blocked during focus)
 window.addEventListener("keydown", (e) => {
   if (e.key === "c" || e.key === "C") {
+    if (cameraFocus.active || cameraFocus.transitioning) return;
+
     cameraConfig.mode = cameraConfig.mode === "mouse" ? "orbit" : "mouse";
     controls.enabled = cameraConfig.mode === "orbit";
 
@@ -298,6 +482,39 @@ window.addEventListener("keydown", (e) => {
     console.log("Camera mode:", cameraConfig.mode);
   }
 });
+
+// Click handler for focus targets (X button / Escape to exit, not click)
+canvas.addEventListener("click", (e) => {
+  if (cameraFocus.active || cameraFocus.transitioning) return;
+  if (focusMeshList.length === 0) return;
+
+  const clickMouse = new THREE.Vector2(
+    (e.clientX / window.innerWidth) * 2 - 1,
+    -(e.clientY / window.innerHeight) * 2 + 1,
+  );
+  raycaster.setFromCamera(clickMouse, camera);
+  const hits = raycaster.intersectObjects(focusMeshList, false);
+  if (hits.length > 0) {
+    const hitMesh = hits[0].object;
+    const config = focusMeshMap.get(hitMesh);
+    if (config) enterFocusMode(hitMesh, config);
+  }
+});
+
+// Escape key exits focus mode
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && (cameraFocus.active || cameraFocus.transitioning)) {
+    exitFocusMode();
+  }
+});
+
+// Close button exits focus mode
+if (focusCloseBtn) {
+  focusCloseBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    exitFocusMode();
+  });
+}
 
 // Loading manager
 const loadingElement = document.getElementById("loading");
@@ -702,6 +919,59 @@ gltfLoader.load(
       if (child.isMesh && child.material) meshes[child.name] = child.material;
     });
     window.meshes = meshes;
+
+    // Resolve focus target meshes + create video planes
+    for (const [meshName, config] of Object.entries(focusTargets)) {
+      const mesh = model.getObjectByName(meshName);
+      if (mesh) {
+        focusMeshMap.set(mesh, config);
+        focusMeshList.push(mesh);
+        console.log(`Focus target resolved: ${meshName}`);
+
+        // Create a video plane overlaying the frame's canvas area
+        const frameBox = new THREE.Box3().setFromObject(mesh);
+        const frameCenter = frameBox.getCenter(new THREE.Vector3());
+        const frameSize = frameBox.getSize(new THREE.Vector3());
+        const normal = getMeshWorldNormal(mesh);
+
+        // Plane sized to ~75% of frame (inner canvas area)
+        const planeW = Math.max(frameSize.x, frameSize.z) * 0.93;
+        const planeH = frameSize.y * 0.83;
+        const planeGeom = new THREE.PlaneGeometry(planeW, planeH);
+        const planeMat = new THREE.MeshBasicMaterial({
+          map: videoTexture,
+          side: THREE.DoubleSide,
+          toneMapped: false,
+        });
+
+        const videoPlane = new THREE.Mesh(planeGeom, planeMat);
+
+        // Derive exact wall normal from model rotation (not averaged mesh normals)
+        // The frame's local outward normal is (0,0,-1), rotated by model's world transform
+        const wallNormal = new THREE.Vector3(0, 0, -1);
+        wallNormal.applyQuaternion(
+          new THREE.Quaternion().setFromEuler(model.rotation),
+        );
+
+        videoPlane.position.copy(frameCenter);
+        // Nudge back toward wall — tweak this value to sit flush on canvas
+        videoPlane.position.add(wallNormal.clone().multiplyScalar(-0.091));
+        videoPlane.lookAt(videoPlane.position.clone().add(wallNormal));
+
+        scene.add(videoPlane);
+        videoPlanes.set(meshName, videoPlane);
+
+        // Expose for tweaking in console
+        window[`videoPlane_${meshName}`] = videoPlane;
+        console.log(`Video plane created for ${meshName}:`, {
+          position: videoPlane.position.toArray().map((v) => +v.toFixed(2)),
+          size: [+planeW.toFixed(2), +planeH.toFixed(2)],
+        });
+      } else {
+        console.warn(`Focus target mesh not found: ${meshName}`);
+      }
+    }
+
     console.log("=== ALL MESHES IN MODEL ===");
     console.log("Total count:", Object.keys(meshes).length);
     console.log("Names:", Object.keys(meshes));
@@ -1094,8 +1364,29 @@ function animate() {
 
   stats.update();
 
-  // Camera mode handling
-  if (cameraConfig.mode === "mouse") {
+  // Camera mode handling (three-branch priority)
+  if (cameraFocus.active || cameraFocus.transitioning) {
+    // Focus mode: lerp camera toward focus/return target
+    const focusLerp = 1 - Math.pow(cameraFocus.lerpBase, delta);
+    camera.position.lerp(cameraFocus.targetPosition, focusLerp);
+    cameraLookCurrent.lerp(cameraFocus.targetLookAt, focusLerp);
+    camera.lookAt(cameraLookCurrent);
+
+    // Check if arrived at target
+    const posDist = camera.position.distanceTo(cameraFocus.targetPosition);
+    const lookDist = cameraLookCurrent.distanceTo(cameraFocus.targetLookAt);
+    if (posDist < 0.01 && lookDist < 0.01) {
+      camera.position.copy(cameraFocus.targetPosition);
+      cameraLookCurrent.copy(cameraFocus.targetLookAt);
+      if (cameraFocus.active) {
+        // Arrived at focus target — stop transitioning
+        cameraFocus.transitioning = false;
+      } else {
+        // Arrived back at return position
+        finishFocusReturn();
+      }
+    }
+  } else if (cameraConfig.mode === "mouse") {
     // Smooth mouse-follow camera - look at where mouse is pointing
     const lerpSpeed = 1 - Math.pow(0.001, delta);
     mouseCurrent.x += (mouseTarget.x - mouseCurrent.x) * lerpSpeed;
@@ -1222,21 +1513,31 @@ function animate() {
     window.sunLight.shadow.camera.updateProjectionMatrix();
   }
 
-  // ============ DJ BOOTH HOVER GLOW ============
+  // ============ DJ BOOTH HOVER GLOW + FOCUS TARGET HOVER ============
   if (boothHover.mesh) {
-    // Raycast against booth mesh + decal
+    // Raycast against booth mesh + decal + focus targets
     raycaster.setFromCamera(raycasterMouse, camera);
     const hoverTargets = [boothHover.mesh];
     if (boothHover.decal) hoverTargets.push(boothHover.decal);
-    const intersects = raycaster.intersectObjects(hoverTargets, false);
-    const hoveredNow = intersects.length > 0;
+    const allHoverTargets = hoverTargets.concat(focusMeshList);
+    const intersects = raycaster.intersectObjects(allHoverTargets, false);
 
-    // On hover state change
+    // Determine what was hit
+    const boothHit = intersects.some(
+      (h) => h.object === boothHover.mesh || h.object === boothHover.decal,
+    );
+    const focusHit = intersects.some((h) => focusMeshMap.has(h.object));
+    const hoveredNow = boothHit;
+    const anyPointerTarget = boothHit || focusHit;
+
+    // Booth hover state change
     if (hoveredNow !== boothHover.isHovered) {
       boothHover.isHovered = hoveredNow;
       boothHover.targetIntensity = hoveredNow ? 1 : 0;
-      document.body.style.cursor = hoveredNow ? "pointer" : "";
     }
+
+    // Pointer cursor for booth or focus targets
+    document.body.style.cursor = anyPointerTarget ? "pointer" : "";
 
     // Lerp glow intensity (frame-rate independent, ~0.3s transition)
     const glowLerp = 1 - Math.pow(0.02, delta);
