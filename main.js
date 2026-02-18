@@ -418,9 +418,8 @@ function enterFocusMode(mesh, config) {
   // Show close button
   if (focusCloseBtn) focusCloseBtn.classList.remove("hidden");
 
-  // Play video if this frame has a video plane
+  // Play video if this frame has a video plane (resume from where it left off)
   if (videoPlanes.has(mesh.name)) {
-    videoEl.currentTime = 0;
     videoEl.play().catch(() => {});
   }
 }
