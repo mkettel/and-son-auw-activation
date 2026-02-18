@@ -234,7 +234,6 @@ const exrLoader = new EXRLoader();
 exrLoader.load("/hdri/forest.exr", (texture) => {
   texture.mapping = THREE.EquirectangularReflectionMapping;
   scene.environment = texture;
-  scene.background = texture;
 });
 
 // Camera mode config: 'mouse' or 'orbit'
@@ -980,25 +979,25 @@ gltfLoader.load(
     sconceRight.position.set(14.3, 6.5, -6.9);
     scene.add(sconceRight);
 
-    // --- ROOM AREA LIGHTS (RectAreaLight - warm) ---
-    // Left area light
-    // const areaLeft = new THREE.RectAreaLight(warmColor, 6, 6, 6);
-    // areaLeft.position.set(4.5, 5, 18);
-    // areaLeft.lookAt(3, 3, 1);
-    // areaLeft.power = 1000;
-    // scene.add(areaLeft);
+    // --- WALL/CEILING FILL LIGHTS (no shadows, cheap) ---
+    // HemisphereLight: cheapest light in Three.js — uniform warm fill everywhere
+    // Sky color warm, ground color slightly darker warm — lifts all surfaces
+    const hemiLight = new THREE.HemisphereLight(0xffe0b2, 0x806040, 0.6);
+    scene.add(hemiLight);
 
-    // Right area light (angled)
-    // const areaRight = new THREE.RectAreaLight(warmColor, 6, 6, 4);
-    // areaRight.position.set(14, 5, 10);
-    // areaRight.lookAt(3, 2, 1);
-    // scene.add(areaRight);
+    // Stronger PointLights close to side walls to push warmth onto them
+    const fillLeft = new THREE.PointLight(warmColor, 4, 18, 1);
+    fillLeft.position.set(-5, 5.5, 2);
+    scene.add(fillLeft);
 
-    // Top area light
-    // const areaTop = new THREE.RectAreaLight(warmColor, 6, 6, 6);
-    // areaTop.position.set(14, 10, 0);
-    // areaTop.lookAt(6, 10, 2);
-    // scene.add(areaTop);
+    const fillRight = new THREE.PointLight(warmColor, 4, 18, 1);
+    fillRight.position.set(15, 5.5, -3);
+    scene.add(fillRight);
+
+    // Ceiling fill — placed right below ceiling, wider range
+    const fillCeiling = new THREE.PointLight(warmColor, 3, 16, 1);
+    fillCeiling.position.set(5, 10.5, 2);
+    scene.add(fillCeiling);
 
     // Ambient light — low for window light contrast
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.15);
@@ -1053,6 +1052,10 @@ gltfLoader.load(
       roomLights: [
         { light: ambientLight, onIntensity: 0.15, current: 0.15, target: 0.15 },
         { light: sunLight, onIntensity: 6, current: 6, target: 6 },
+        { light: hemiLight, onIntensity: 0.6, current: 0.6, target: 0.6 },
+        { light: fillLeft, onIntensity: 4, current: 4, target: 4 },
+        { light: fillRight, onIntensity: 4, current: 4, target: 4 },
+        { light: fillCeiling, onIntensity: 3, current: 3, target: 3 },
       ],
       practicalLights: [
         // These turn ON when room lights are OFF
