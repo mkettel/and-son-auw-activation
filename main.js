@@ -5,6 +5,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
 import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
 import { RectAreaLightHelper } from "three/addons/helpers/RectAreaLightHelper.js";
+import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import Stats from "three/addons/libs/stats.module.js";
 
 // ============ PCSS SOFT SHADOWS (like Drei's SoftShadows) ============
@@ -229,6 +230,16 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.BasicShadowMap; // PCSS handles softening
 
+// CSS2D overlay renderer (for hotspot indicators — synced with WebGL projection)
+const css2dRenderer = new CSS2DRenderer();
+css2dRenderer.setSize(window.innerWidth, window.innerHeight);
+css2dRenderer.domElement.style.position = "absolute";
+css2dRenderer.domElement.style.top = "0";
+css2dRenderer.domElement.style.left = "0";
+css2dRenderer.domElement.style.pointerEvents = "none";
+css2dRenderer.domElement.id = "css2d-overlay";
+document.body.appendChild(css2dRenderer.domElement);
+
 // HDRI Environment (for subtle reflections)
 const exrLoader = new EXRLoader();
 exrLoader.load("/hdri/forest.exr", (texture) => {
@@ -253,17 +264,7 @@ const cameraLookRange = { x: 2, y: 1 };
 // Raycaster for DJ booth hover detection
 const raycaster = new THREE.Raycaster();
 const raycasterMouse = new THREE.Vector2();
-const boothHover = {
-  isHovered: false,
-  glowIntensity: 0,
-  targetIntensity: 0,
-  glowColor: new THREE.Color(0xcc8844),
-  maxEmissiveIntensity: 0.00001,
-  mesh: null,
-  decal: null,
-  originalEmissive: new THREE.Color(),
-  originalEmissiveIntensity: 0,
-};
+const boothHover = { isHovered: false, mesh: null, decal: null };
 
 // ============ CLICK-TO-FOCUS CAMERA SYSTEM ============
 // Declarative map of clickable mesh names → camera behavior
@@ -288,6 +289,14 @@ const focusTargets = {
     lerpBase: 0.008,
   },
 };
+
+// ============ HOTSPOT INDICATORS ============
+const hotspotConfig = {
+  BOOTH_DJ: { elementId: "hotspot-booth", offsetY: 2.5 },
+  FRAME_LEFT_1: { elementId: "hotspot-frame-left-1", offsetY: 1.5 },
+  FRAME_LEFT_2: { elementId: "hotspot-frame-left-2", offsetY: 1.5 },
+};
+const hotspots = []; // populated after model loads
 
 // Focus mode state
 const cameraFocus = {
@@ -791,13 +800,8 @@ gltfLoader.load(
     // ============ DECAL (AUW Logo) on DJ Booth ============
     const boothMesh = model.getObjectByName("BOOTH_DJ");
     if (boothMesh) {
-      // Store booth mesh ref + original emissive for hover glow
+      // Store booth mesh ref for raycasting
       boothHover.mesh = boothMesh;
-      if (boothMesh.material) {
-        boothHover.originalEmissive.copy(boothMesh.material.emissive);
-        boothHover.originalEmissiveIntensity =
-          boothMesh.material.emissiveIntensity;
-      }
 
       const textureLoader = new THREE.TextureLoader();
       textureLoader.load("/textures/test-decal.png", (texture) => {
@@ -913,6 +917,39 @@ gltfLoader.load(
         console.warn(`Focus target mesh not found: ${meshName}`);
       }
     }
+
+    // ============ POPULATE HOTSPOTS (CSS2DObject) ============
+    for (const [meshName, hConfig] of Object.entries(hotspotConfig)) {
+      const mesh = model.getObjectByName(meshName);
+      if (!mesh) continue;
+
+      // Build DOM element
+      const el = document.getElementById(hConfig.elementId);
+      if (!el) continue;
+      // Remove from document flow — CSS2DRenderer will own it
+      el.remove();
+
+      // Wrap in CSS2DObject and position in world space
+      const css2dObj = new CSS2DObject(el);
+      const box = new THREE.Box3().setFromObject(mesh);
+      const center = box.getCenter(new THREE.Vector3());
+      css2dObj.position.set(center.x, center.y + hConfig.offsetY, center.z);
+      scene.add(css2dObj);
+
+      hotspots.push({ element: el, css2dObj, meshName });
+
+      // Click handler — trigger existing focus mode
+      el.addEventListener("click", () => {
+        if (cameraFocus.active || cameraFocus.transitioning) return;
+        const focusConfig = focusMeshMap.get(mesh);
+        if (focusConfig) enterFocusMode(mesh, focusConfig);
+      });
+    }
+
+    // Fade hotspots in after a short delay
+    setTimeout(() => {
+      hotspots.forEach((h) => h.element.classList.add("visible"));
+    }, 800);
 
     console.log("=== ALL MESHES IN MODEL ===");
     console.log("Total count:", Object.keys(meshes).length);
@@ -1225,6 +1262,7 @@ window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  css2dRenderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 // ============ TIME SIM CONTROLS ============
@@ -1473,37 +1511,22 @@ function animate() {
       (h) => h.object === boothHover.mesh || h.object === boothHover.decal,
     );
     const focusHit = intersects.some((h) => focusMeshMap.has(h.object));
-    const hoveredNow = boothHit;
     const anyPointerTarget = boothHit || focusHit;
 
-    // Booth hover state change
-    if (hoveredNow !== boothHover.isHovered) {
-      boothHover.isHovered = hoveredNow;
-      boothHover.targetIntensity = hoveredNow ? 1 : 0;
-    }
+    boothHover.isHovered = boothHit;
 
     // Pointer cursor for booth or focus targets
     document.body.style.cursor = anyPointerTarget ? "pointer" : "";
+  }
 
-    // Lerp glow intensity (frame-rate independent, ~0.3s transition)
-    const glowLerp = 1 - Math.pow(0.02, delta);
-    boothHover.glowIntensity +=
-      (boothHover.targetIntensity - boothHover.glowIntensity) * glowLerp;
-
-    // Apply emissive glow to booth material
-    const mat = boothHover.mesh.material;
-    if (mat) {
-      const t = boothHover.glowIntensity;
-      mat.emissiveIntensity =
-        boothHover.originalEmissiveIntensity +
-        t * boothHover.maxEmissiveIntensity;
-      mat.emissive
-        .copy(boothHover.originalEmissive)
-        .lerp(boothHover.glowColor, t);
-    }
+  // Hide/show hotspots during focus mode
+  const isFocused = cameraFocus.active || cameraFocus.transitioning;
+  for (let i = 0; i < hotspots.length; i++) {
+    hotspots[i].css2dObj.visible = !isFocused;
   }
 
   renderer.render(scene, camera);
+  css2dRenderer.render(scene, camera);
 }
 
 animate();

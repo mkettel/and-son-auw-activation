@@ -4,7 +4,8 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -39,7 +40,10 @@ html, body {
 
 .loading-text {
   color: #fff;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   font-size: 1.2rem;
   margin-bottom: 1.5rem;
 }
@@ -61,7 +65,10 @@ html, body {
 
 .progress-text {
   color: #888;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   font-size: 0.9rem;
   margin-top: 0.75rem;
 }
@@ -76,7 +83,10 @@ html, body {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.5);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   font-size: 14px;
   display: flex;
   align-items: center;
@@ -103,12 +113,17 @@ html, body {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   padding: 12px 16px;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   z-index: 50;
   transform: translateY(8px);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s, transform 0.2s;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
 }
 
 #legend.open {
@@ -208,7 +223,9 @@ html, body {
   font-family: inherit;
   font-size: 10px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
   white-space: nowrap;
 }
 
@@ -246,7 +263,10 @@ html, body {
   justify-content: center;
   cursor: pointer;
   z-index: 60;
-  transition: background 0.2s, opacity 0.3s, transform 0.3s;
+  transition:
+    background 0.2s,
+    opacity 0.3s,
+    transform 0.3s;
   opacity: 1;
   transform: scale(1);
 }
@@ -260,4 +280,100 @@ html, body {
   opacity: 0;
   pointer-events: none;
   transform: scale(0.8);
+}
+
+/* ============ HOTSPOT INDICATORS ============ */
+/* CSS2DRenderer handles positioning + centering via transform.
+   We layer our styles on top without fighting the inline transform. */
+.hotspot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.hotspot.visible {
+  opacity: 1;
+}
+
+.hotspot-dot {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #ffffff, #cccccc);
+  box-shadow: 0 0 8px 2px rgba(255, 255, 255, 0.45);
+  animation: hotspot-pulse 2.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.hotspot-dot::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%) scale(1);
+  animation: hotspot-ring 2.4s ease-out infinite;
+}
+
+@keyframes hotspot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+@keyframes hotspot-ring {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.8);
+    opacity: 0;
+  }
+}
+
+.hotspot-label {
+  color: rgba(255, 245, 230, 0.9);
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+  pointer-events: none;
+}
+
+.hotspot:hover .hotspot-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.hotspot:hover .hotspot {
+  background: red;
+}
+
+/* CSS2DRenderer overlay — allow pointer events on hotspot children */
+#css2d-overlay {
+  z-index: 40;
 }
