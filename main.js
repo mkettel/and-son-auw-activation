@@ -5,7 +5,10 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
 import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
 import { RectAreaLightHelper } from "three/addons/helpers/RectAreaLightHelper.js";
-import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+import {
+  CSS2DRenderer,
+  CSS2DObject,
+} from "three/addons/renderers/CSS2DRenderer.js";
 import Stats from "three/addons/libs/stats.module.js";
 
 // ============ PCSS SOFT SHADOWS (like Drei's SoftShadows) ============
@@ -585,8 +588,12 @@ gltfLoader.load(
     });
 
     // Hide cactus in main model (using separate cactus model instead)
+    // Also hide old flat frame meshes (replaced by new STORE VIDEO FRAME model)
     model.traverse((child) => {
       if (child.name.toLowerCase().includes("cactus")) {
+        child.visible = false;
+      }
+      if (child.name === "FRAME_LEFT_1" || child.name === "FRAME_LEFT_2") {
         child.visible = false;
       }
     });
@@ -880,9 +887,9 @@ gltfLoader.load(
         const frameSize = frameBox.getSize(new THREE.Vector3());
         const normal = getMeshWorldNormal(mesh);
 
-        // Plane sized to ~75% of frame (inner canvas area)
-        const planeW = Math.max(frameSize.x, frameSize.z) * 0.93;
-        const planeH = frameSize.y * 0.83;
+        // Plane sized to fit inside the wood frame
+        const planeW = Math.max(frameSize.x, frameSize.z) * 1.21;
+        const planeH = frameSize.y * 0.78;
         const planeGeom = new THREE.PlaneGeometry(planeW, planeH);
         const planeMat = new THREE.MeshBasicMaterial({
           map: videoTexture,
@@ -950,6 +957,50 @@ gltfLoader.load(
     setTimeout(() => {
       hotspots.forEach((h) => h.element.classList.add("visible"));
     }, 800);
+
+    // ============ LOAD NEW STORE VIDEO FRAME MODEL (visual only) ============
+    gltfLoader.load("/models/STORE VIDEO FRAME.gltf", (frameGltf) => {
+      ["FRAME_LEFT_1", "FRAME_LEFT_2"].forEach((frameName) => {
+        const oldMesh = model.getObjectByName(frameName);
+        if (!oldMesh) return;
+
+        const newFrame = frameGltf.scene.clone();
+        newFrame.rotation.y = -1.1;
+
+        // Align new frame to old frame's world-space center
+        const oldBox = new THREE.Box3().setFromObject(oldMesh);
+        const oldCenter = oldBox.getCenter(new THREE.Vector3());
+        const gltfNode = frameGltf.scene.children[0];
+        const bakedTranslation = gltfNode.position.clone();
+        const rotatedOffset = bakedTranslation
+          .clone()
+          .applyAxisAngle(new THREE.Vector3(0, 1, 0), -1.1);
+        newFrame.position.copy(oldCenter).sub(rotatedOffset);
+
+        newFrame.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) child.material.envMapIntensity = 0.9;
+          }
+        });
+
+        scene.add(newFrame);
+
+        // Nudge the existing video plane forward so it sits on top of the new 3D frame
+        const vp = videoPlanes.get(frameName);
+        if (vp) {
+          const wallNormal = new THREE.Vector3(0, 0, -1);
+          wallNormal.applyQuaternion(
+            new THREE.Quaternion().setFromEuler(model.rotation),
+          );
+          // Move from old offset (-0.091 into wall) to in front of the new frame
+          vp.position.add(wallNormal.clone().multiplyScalar(0.1));
+        }
+
+        console.log(`New frame placed for ${frameName}`);
+      });
+    });
 
     console.log("=== ALL MESHES IN MODEL ===");
     console.log("Total count:", Object.keys(meshes).length);
