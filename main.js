@@ -1045,6 +1045,26 @@ gltfLoader.load(
       );
     });
 
+    // ============ LOAD SOPRANOS FRAME MODEL ============
+    gltfLoader.load("/models/SOPRANOS FRAME/SOPRANOS FRAME.gltf", (sopGltf) => {
+      const sopModel = sopGltf.scene;
+      sopModel.rotation.y = -1.1;
+
+      sopModel.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material) {
+            child.material.envMapIntensity = 0.9;
+          }
+        }
+      });
+
+      scene.add(sopModel);
+      window.sopModel = sopModel;
+      console.log("Sopranos Frame loaded. Adjust with: sopModel.position.set(x, y, z)");
+    });
+
     console.log("=== ALL MESHES IN MODEL ===");
     console.log("Total count:", Object.keys(meshes).length);
     console.log("Names:", Object.keys(meshes));
