@@ -1001,6 +1001,26 @@ gltfLoader.load(
       });
     });
 
+    // ============ LOAD BRUNSON DOLL MODEL ============
+    gltfLoader.load("/models/BRUNSON DOLL/BRUNSON DOLL.gltf", (dollGltf) => {
+      const dollModel = dollGltf.scene;
+      dollModel.rotation.y = -1.1;
+
+      dollModel.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material) {
+            child.material.envMapIntensity = 0.9;
+          }
+        }
+      });
+
+      scene.add(dollModel);
+      window.dollModel = dollModel;
+      console.log("Brunson Doll loaded. Adjust with: dollModel.position.set(x, y, z)");
+    });
+
     console.log("=== ALL MESHES IN MODEL ===");
     console.log("Total count:", Object.keys(meshes).length);
     console.log("Names:", Object.keys(meshes));
