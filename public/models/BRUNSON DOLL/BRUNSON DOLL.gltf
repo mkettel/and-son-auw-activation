@@ -139,9 +139,9 @@
 	],
 	"images":[
 		{
-			"mimeType":"image/png",
+			"mimeType":"image/jpeg",
 			"name":"brunson doll",
-			"uri":"brunson%20doll.png"
+			"uri":"brunson%20doll.jpg"
 		}
 	],
 	"accessors":[
