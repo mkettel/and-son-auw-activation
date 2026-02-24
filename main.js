@@ -1021,6 +1021,26 @@ gltfLoader.load(
       console.log("Brunson Doll loaded. Adjust with: dollModel.position.set(x, y, z)");
     });
 
+    // ============ LOAD DJ DECK MODEL ============
+    gltfLoader.load("/models/DJ DECK/DJ DECK.gltf", (deckGltf) => {
+      const deckModel = deckGltf.scene;
+      deckModel.rotation.y = -1.1;
+
+      deckModel.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material) {
+            child.material.envMapIntensity = 0.9;
+          }
+        }
+      });
+
+      scene.add(deckModel);
+      window.deckModel = deckModel;
+      console.log("DJ Deck loaded. Adjust with: deckModel.position.set(x, y, z)");
+    });
+
     console.log("=== ALL MESHES IN MODEL ===");
     console.log("Total count:", Object.keys(meshes).length);
     console.log("Names:", Object.keys(meshes));
