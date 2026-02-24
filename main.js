@@ -287,7 +287,7 @@ const focusTargets = {
   },
   BOOTH_DJ: {
     // Explicit camera placement — tune these in console then paste back
-    cameraPosition: new THREE.Vector3(11, 7.5, 12),
+    cameraPosition: new THREE.Vector3(11, 7.5, 13),
     cameraLookAt: new THREE.Vector3(19, 3.5, 0),
     lerpBase: 0.008,
   },
