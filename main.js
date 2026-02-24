@@ -287,8 +287,8 @@ const focusTargets = {
   },
   BOOTH_DJ: {
     // Explicit camera placement — tune these in console then paste back
-    cameraPosition: new THREE.Vector3(10, 4.5, 16),
-    cameraLookAt: new THREE.Vector3(19, 4.5, 0),
+    cameraPosition: new THREE.Vector3(11, 7.5, 12),
+    cameraLookAt: new THREE.Vector3(19, 3.5, 0),
     lerpBase: 0.008,
   },
 };
@@ -1018,7 +1018,9 @@ gltfLoader.load(
 
       scene.add(dollModel);
       window.dollModel = dollModel;
-      console.log("Brunson Doll loaded. Adjust with: dollModel.position.set(x, y, z)");
+      console.log(
+        "Brunson Doll loaded. Adjust with: dollModel.position.set(x, y, z)",
+      );
     });
 
     // ============ LOAD DJ DECK MODEL ============
@@ -1038,7 +1040,9 @@ gltfLoader.load(
 
       scene.add(deckModel);
       window.deckModel = deckModel;
-      console.log("DJ Deck loaded. Adjust with: deckModel.position.set(x, y, z)");
+      console.log(
+        "DJ Deck loaded. Adjust with: deckModel.position.set(x, y, z)",
+      );
     });
 
     console.log("=== ALL MESHES IN MODEL ===");
