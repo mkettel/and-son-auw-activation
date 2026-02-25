@@ -586,13 +586,15 @@ gltfLoader.load(
       }
     });
 
-    // Hide cactus in main model (using separate cactus model instead)
-    // Also hide old flat frame meshes (replaced by new STORE VIDEO FRAME model)
+    // Hide cactus, old frames, and old sconces in main model (replaced by separate models)
     model.traverse((child) => {
       if (child.name.toLowerCase().includes("cactus")) {
         child.visible = false;
       }
       if (child.name === "FRAME_LEFT_1" || child.name === "FRAME_LEFT_2") {
+        child.visible = false;
+      }
+      if (child.name.toLowerCase().includes("sconce")) {
         child.visible = false;
       }
     });
@@ -1063,6 +1065,26 @@ gltfLoader.load(
       scene.add(sopModel);
       window.sopModel = sopModel;
       console.log("Sopranos Frame loaded. Adjust with: sopModel.position.set(x, y, z)");
+    });
+
+    // ============ LOAD SCONCE MODEL ============
+    gltfLoader.load("/models/sconce/sconce.gltf", (sconceGltf) => {
+      const sconceModel = sconceGltf.scene;
+      sconceModel.rotation.y = -1.1;
+
+      sconceModel.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material) {
+            child.material.envMapIntensity = 0.9;
+          }
+        }
+      });
+
+      scene.add(sconceModel);
+      window.sconceModel = sconceModel;
+      console.log("Sconce model loaded. Adjust with: sconceModel.position.set(x, y, z)");
     });
 
     console.log("=== ALL MESHES IN MODEL ===");
