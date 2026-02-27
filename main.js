@@ -1008,6 +1008,11 @@ gltfLoader.load(
       const dollModel = dollGltf.scene;
       dollModel.rotation.y = -1.1;
 
+      // Zero out the baked translation so rotation pivots around the doll itself
+      const dollNode = dollModel.children[0];
+      if (dollNode) dollNode.position.set(-0.0, 8.8, -1.7);
+      dollNode.rotation.y = 0.8;
+
       dollModel.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
@@ -1017,6 +1022,9 @@ gltfLoader.load(
           }
         }
       });
+
+      // Position doll on the chair
+      dollModel.position.set(-5, -6.3, 3.5);
 
       scene.add(dollModel);
       window.dollModel = dollModel;
@@ -1064,7 +1072,9 @@ gltfLoader.load(
 
       scene.add(sopModel);
       window.sopModel = sopModel;
-      console.log("Sopranos Frame loaded. Adjust with: sopModel.position.set(x, y, z)");
+      console.log(
+        "Sopranos Frame loaded. Adjust with: sopModel.position.set(x, y, z)",
+      );
     });
 
     // ============ LOAD SCONCE MODEL ============
@@ -1084,7 +1094,9 @@ gltfLoader.load(
 
       scene.add(sconceModel);
       window.sconceModel = sconceModel;
-      console.log("Sconce model loaded. Adjust with: sconceModel.position.set(x, y, z)");
+      console.log(
+        "Sconce model loaded. Adjust with: sconceModel.position.set(x, y, z)",
+      );
     });
 
     console.log("=== ALL MESHES IN MODEL ===");
