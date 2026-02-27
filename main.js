@@ -301,6 +301,184 @@ const hotspotConfig = {
 };
 const hotspots = []; // populated after model loads
 
+// ============ MEDIA PLAYER STATE ============
+const mediaPlayer = {
+  el: document.getElementById("media-player"),
+  playlist: [
+    { title: "BEN'S FRIEND'S SONG", artist: "ARTIST NAME", src: "" },
+    { title: "TRACK TWO", artist: "ARTIST NAME", src: "" },
+    { title: "TRACK THREE", artist: "ARTIST NAME", src: "" },
+    { title: "TRACK FOUR", artist: "ARTIST NAME", src: "" },
+    { title: "TRACK FIVE", artist: "ARTIST NAME", src: "" },
+    { title: "TRACK SIX", artist: "ARTIST NAME", src: "" },
+  ],
+  currentIndex: 0,
+  audio: new Audio(),
+  playing: false,
+  shuffle: false,
+  repeat: false,
+};
+
+/** Show the media player UI */
+function showMediaPlayer() {
+  if (mediaPlayer.el) mediaPlayer.el.classList.remove("hidden");
+  loadTrack(mediaPlayer.currentIndex);
+}
+
+/** Hide the media player UI */
+function hideMediaPlayer() {
+  if (mediaPlayer.el) mediaPlayer.el.classList.add("hidden");
+  pauseTrack();
+}
+
+/** Load a track by index */
+function loadTrack(index) {
+  const track = mediaPlayer.playlist[index];
+  if (!track) return;
+  mediaPlayer.currentIndex = index;
+
+  const titleEl = document.getElementById("mp-title");
+  const artistEl = document.getElementById("mp-artist");
+  const durationEl = document.getElementById("mp-duration");
+  const currentTimeEl = document.getElementById("mp-current-time");
+  const progressBar = document.getElementById("mp-progress-bar");
+
+  if (titleEl) titleEl.textContent = track.title;
+  if (artistEl) artistEl.textContent = track.artist;
+  if (durationEl) durationEl.textContent = "0:00";
+  if (currentTimeEl) currentTimeEl.textContent = "0:00";
+  if (progressBar) progressBar.style.width = "0%";
+
+  // Load audio if src exists
+  if (track.src) {
+    mediaPlayer.audio.src = track.src;
+    mediaPlayer.audio.load();
+  }
+
+  // Update preset button active state
+  document.querySelectorAll(".mp-preset-btn").forEach((btn) => {
+    btn.classList.toggle("mp-preset-active", parseInt(btn.dataset.preset) === index);
+  });
+}
+
+/** Play current track */
+function playTrack() {
+  if (mediaPlayer.audio.src) {
+    mediaPlayer.audio.play().catch(() => {});
+  }
+  mediaPlayer.playing = true;
+  updatePlayIcon();
+}
+
+/** Pause current track */
+function pauseTrack() {
+  mediaPlayer.audio.pause();
+  mediaPlayer.playing = false;
+  updatePlayIcon();
+}
+
+/** Toggle play/pause */
+function togglePlay() {
+  if (mediaPlayer.playing) {
+    pauseTrack();
+  } else {
+    playTrack();
+  }
+}
+
+/** Go to next track */
+function nextTrack() {
+  let next;
+  if (mediaPlayer.shuffle) {
+    next = Math.floor(Math.random() * mediaPlayer.playlist.length);
+  } else {
+    next = (mediaPlayer.currentIndex + 1) % mediaPlayer.playlist.length;
+  }
+  loadTrack(next);
+  if (mediaPlayer.playing) playTrack();
+}
+
+/** Go to previous track */
+function prevTrack() {
+  // If more than 3 seconds in, restart; otherwise go previous
+  if (mediaPlayer.audio.currentTime > 3) {
+    mediaPlayer.audio.currentTime = 0;
+    return;
+  }
+  let prev = (mediaPlayer.currentIndex - 1 + mediaPlayer.playlist.length) % mediaPlayer.playlist.length;
+  loadTrack(prev);
+  if (mediaPlayer.playing) playTrack();
+}
+
+/** Update play/pause icon */
+function updatePlayIcon() {
+  const icon = document.getElementById("mp-play-icon");
+  if (!icon) return;
+  if (mediaPlayer.playing) {
+    // Pause icon (two bars)
+    icon.innerHTML = '<rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/>';
+  } else {
+    // Play icon (triangle)
+    icon.innerHTML = '<polygon points="6 3 20 12 6 21 6 3"/>';
+  }
+}
+
+/** Format seconds to m:ss */
+function formatTime(seconds) {
+  if (!seconds || isNaN(seconds)) return "0:00";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+// Audio time update → progress bar + time display
+mediaPlayer.audio.addEventListener("timeupdate", () => {
+  const currentTimeEl = document.getElementById("mp-current-time");
+  const progressBar = document.getElementById("mp-progress-bar");
+  if (currentTimeEl) currentTimeEl.textContent = formatTime(mediaPlayer.audio.currentTime);
+  if (progressBar && mediaPlayer.audio.duration) {
+    progressBar.style.width = `${(mediaPlayer.audio.currentTime / mediaPlayer.audio.duration) * 100}%`;
+  }
+});
+
+mediaPlayer.audio.addEventListener("loadedmetadata", () => {
+  const durationEl = document.getElementById("mp-duration");
+  if (durationEl) durationEl.textContent = formatTime(mediaPlayer.audio.duration);
+});
+
+mediaPlayer.audio.addEventListener("ended", () => {
+  if (mediaPlayer.repeat) {
+    mediaPlayer.audio.currentTime = 0;
+    playTrack();
+  } else {
+    nextTrack();
+  }
+});
+
+// Wire up controls
+document.getElementById("mp-play")?.addEventListener("click", togglePlay);
+document.getElementById("mp-next")?.addEventListener("click", nextTrack);
+document.getElementById("mp-prev")?.addEventListener("click", prevTrack);
+
+document.getElementById("mp-shuffle")?.addEventListener("click", () => {
+  mediaPlayer.shuffle = !mediaPlayer.shuffle;
+  document.getElementById("mp-shuffle")?.classList.toggle("active", mediaPlayer.shuffle);
+});
+
+document.getElementById("mp-repeat")?.addEventListener("click", () => {
+  mediaPlayer.repeat = !mediaPlayer.repeat;
+  document.getElementById("mp-repeat")?.classList.toggle("active", mediaPlayer.repeat);
+});
+
+// Preset buttons
+document.querySelectorAll(".mp-preset-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const index = parseInt(btn.dataset.preset);
+    loadTrack(index);
+    if (mediaPlayer.playing) playTrack();
+  });
+});
+
 // Focus mode state
 const cameraFocus = {
   active: false,
@@ -433,6 +611,12 @@ function enterFocusMode(mesh, config) {
   if (videoPlanes.has(mesh.name)) {
     videoEl.play().catch(() => {});
   }
+
+  // Show media player when focusing on DJ booth
+  if (targetMesh.name === "BOOTH_DJ") {
+    // Delay until camera lerp finishes (handled in animate loop)
+    cameraFocus._showMediaPlayerOnArrival = true;
+  }
 }
 
 /** Exit focus mode — lerp camera back to saved return position */
@@ -446,6 +630,9 @@ function exitFocusMode() {
 
   // Hide close button
   if (focusCloseBtn) focusCloseBtn.classList.add("hidden");
+
+  // Hide media player
+  hideMediaPlayer();
 
   // Pause video
   videoEl.pause();
@@ -1520,6 +1707,11 @@ function animate() {
       if (cameraFocus.active) {
         // Arrived at focus target — stop transitioning
         cameraFocus.transitioning = false;
+        // Show media player if arriving at DJ booth
+        if (cameraFocus._showMediaPlayerOnArrival) {
+          cameraFocus._showMediaPlayerOnArrival = false;
+          showMediaPlayer();
+        }
       } else {
         // Arrived back at return position
         finishFocusReturn();

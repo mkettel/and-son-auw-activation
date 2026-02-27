@@ -379,3 +379,303 @@ body {
 #css2d-overlay {
   z-index: 40;
 }
+
+/* ============ DJ BOOTH MEDIA PLAYER ============ */
+.media-player {
+  position: fixed;
+  top: 55px;
+  right: 55px;
+  z-index: 55;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease;
+  pointer-events: auto;
+}
+
+.media-player.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-12px);
+}
+
+.mp-body {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(0, 0, 0, 0) 50%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+
+  background-color: #2a3040;
+  border: 3px solid #364153;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    inset 0px 21.62px 43.24px -10.38px #00000040;
+  width: 600px;
+}
+
+/* Left column */
+.mp-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding-right: 14px;
+  min-width: 72px;
+}
+
+.mp-source-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1.73px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.mp-source-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Volume knob */
+.mp-knob-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.mp-knob {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #555, #2a2e38 70%);
+  border: 3px solid #3a3f4c;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  position: relative;
+}
+
+.mp-knob-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 16px;
+  background: #fff;
+  border-radius: 1px;
+  transform-origin: bottom center;
+  transform: translate(-50%, -100%) rotate(-45deg);
+}
+
+.mp-volume-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: rgba(255, 255, 255, 0.45);
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 11px;
+}
+
+.mp-volume-icon {
+  font-size: 14px;
+}
+
+.mp-volume-val {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Center column */
+.mp-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* LCD display */
+.mp-lcd {
+  background: #0a0c10;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 15px 15px;
+  margin-bottom: 14px;
+}
+
+.mp-lcd-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #1e2939;
+}
+
+.mp-lcd-source,
+.mp-lcd-time {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.5px;
+}
+
+.mp-lcd-title {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.mp-lcd-artist {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+
+.mp-lcd-progress {
+  margin-top: 6px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.mp-lcd-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 2px;
+  transition: width 0.3s linear;
+}
+
+/* Transport controls */
+.mp-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.mp-ctrl-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  border: 1.73px solid #4a5565;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.mp-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.mp-ctrl-btn.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.mp-ctrl-btn-lg {
+  width: 41px;
+  height: 41px;
+}
+
+.mp-play-btn {
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  border: 3.46px solid #4a5565;
+  background: linear-gradient(180deg, #fff 0%, #ccc 100%);
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition:
+    transform 0.1s,
+    box-shadow 0.1s;
+}
+
+.mp-play-btn:hover {
+  transform: scale(1.01);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+}
+
+.mp-play-btn:active {
+  transform: scale(0.96);
+}
+
+/* Preset buttons (right column) */
+.mp-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: 14px;
+}
+
+.mp-preset-btn {
+  width: 34px;
+  height: 24px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.55);
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.mp-preset-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.mp-preset-btn.mp-preset-active {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1a1a1a;
+  border-color: #fff;
+}
