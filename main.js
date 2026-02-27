@@ -297,6 +297,7 @@ const focusTargets = {
 const hotspotConfig = {
   BOOTH_DJ: { elementId: "hotspot-booth", offsetY: 2.5 },
   FRAME_LEFT_1: { elementId: "hotspot-frame-left-1", offsetY: 1.5 },
+  Hanger_1: { elementId: "hotspot-rack", offsetY: 1.0 },
 };
 const hotspots = []; // populated after model loads
 
