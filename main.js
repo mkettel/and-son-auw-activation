@@ -780,6 +780,12 @@ gltfLoader.load(
       logoMesh.material.emissive.set(0xffffff);
       logoMesh.material.emissiveIntensity = 0.8;
     }
+    if (logoMesh) {
+      // Bring logo forward off the wall (local Z) and rotate around Z axis
+      logoMesh.translateZ(0.3);
+      logoMesh.translateY(2.8);
+      window.logoMesh = logoMesh;
+    }
 
     // Floor (ROOM_2) - used when toggled back to old room
     const floorMesh = model.getObjectByName("ROOM_2");
@@ -1671,6 +1677,11 @@ function animate() {
   const isFocused = cameraFocus.active || cameraFocus.transitioning;
   for (let i = 0; i < hotspots.length; i++) {
     hotspots[i].css2dObj.visible = !isFocused;
+  }
+
+  // Slowly rotate logo around Z axis
+  if (window.logoMesh) {
+    window.logoMesh.rotation.z += delta * 0.3; // ~17° per second
   }
 
   renderer.render(scene, camera);
