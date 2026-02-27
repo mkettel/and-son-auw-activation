@@ -1,3 +1,10 @@
+@font-face {
+  font-family: "Digital Numbers";
+  src: url("/fonts/DigitalNumbers-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -418,7 +425,7 @@ body {
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.5),
     inset 0px 21.62px 43.24px -10.38px #00000040;
-  width: 600px;
+  width: 700px;
 }
 
 /* Left column */
@@ -518,8 +525,8 @@ body {
 /* LCD display */
 .mp-lcd {
   background: #0a0c10;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
+  border: 2px solid #364153;
+  border-radius: 8px;
   padding: 15px 15px;
   margin-bottom: 14px;
 }
@@ -528,36 +535,54 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 10px;
+  padding-bottom: 5px;
   border-bottom: 1px solid #1e2939;
 }
 
-.mp-lcd-source,
+.mp-lcd-source {
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 11px;
+  color: #fff;
+  margin-bottom: 0px;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .mp-lcd-time {
-  font-family: "Courier New", Courier, monospace;
+  font-family: "Digital Numbers", "Courier New", Courier, monospace;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.45);
   letter-spacing: 0.5px;
 }
 
 .mp-lcd-title {
-  font-family: "Courier New", Courier, monospace;
-  font-size: 22px;
+  font-family: "Digital Numbers", "Courier New", Courier, monospace;
+  font-size: 20px;
   font-weight: 700;
+  line-height: 27.68px;
+  letter-spacing: 0.58px;
   color: rgba(255, 255, 255, 0.9);
   letter-spacing: 1.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.2;
+  margin-bottom: 4px;
 }
 
 .mp-lcd-artist {
-  font-family: "Courier New", Courier, monospace;
+  font-family: "Digital Numbers", "Courier New", Courier, monospace;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.4);
   letter-spacing: 1px;
   margin-top: 2px;
+  margin-bottom: 4px;
 }
 
 .mp-lcd-progress {
@@ -646,7 +671,7 @@ body {
 .mp-presets {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 7px;
   padding-left: 14px;
 }
 
@@ -654,7 +679,7 @@ body {
   width: 34px;
   height: 24px;
   border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.55);
   font-family:
