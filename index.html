@@ -1,117 +1,285 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>And Son Store</title>
-  <link rel="stylesheet" href="/style.css">
-</head>
-<body>
-  <div id="loading">
-    <div class="loading-text">Loading model...</div>
-    <div class="progress-bar">
-      <div class="progress-fill" id="progress-fill"></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>And Son Store</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div id="loading">
+      <div class="loading-text">Loading model...</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-text" id="progress-text">0%</div>
     </div>
-    <div class="progress-text" id="progress-text">0%</div>
-  </div>
-  <canvas id="canvas"></canvas>
-  <div class="hotspot" id="hotspot-booth">
-    <span class="hotspot-dot"></span>
-    <span class="hotspot-label">Listen to music</span>
-  </div>
-  <div class="hotspot" id="hotspot-frame-left-1">
-    <span class="hotspot-dot"></span>
-    <span class="hotspot-label">Watch video</span>
-  </div>
-  <div class="hotspot" id="hotspot-rack">
-    <span class="hotspot-dot"></span>
-    <span class="hotspot-label">Shop</span>
-  </div>
-  <button id="focus-close-btn" class="focus-close-btn hidden">&times;</button>
+    <canvas id="canvas"></canvas>
+    <div class="hotspot" id="hotspot-booth">
+      <span class="hotspot-dot"></span>
+      <span class="hotspot-label">Listen to music</span>
+    </div>
+    <div class="hotspot" id="hotspot-frame-left-1">
+      <span class="hotspot-dot"></span>
+      <span class="hotspot-label">Watch video</span>
+    </div>
+    <div class="hotspot" id="hotspot-rack">
+      <span class="hotspot-dot"></span>
+      <span class="hotspot-label">Shop Clothes</span>
+    </div>
+    <div class="hotspot" id="hotspot-table">
+      <span class="hotspot-dot"></span>
+      <span class="hotspot-label">Shop Homegoods</span>
+    </div>
+    <button id="focus-close-btn" class="focus-close-btn hidden">&times;</button>
 
-  <!-- ============ DJ BOOTH MEDIA PLAYER ============ -->
-  <div id="media-player" class="media-player hidden">
-    <div class="mp-body">
-      <!-- Left column: SOURCE button + volume knob -->
-      <div class="mp-left">
-        <button class="mp-source-btn">SOURCE</button>
-        <div class="mp-knob-wrap">
-          <div class="mp-knob">
-            <div class="mp-knob-indicator"></div>
+    <!-- ============ DJ BOOTH MEDIA PLAYER ============ -->
+    <div id="media-player" class="media-player hidden">
+      <div class="mp-body">
+        <!-- Left column: SOURCE button + volume knob -->
+        <div class="mp-left">
+          <button class="mp-source-btn">SOURCE</button>
+          <div class="mp-knob-wrap">
+            <div class="mp-knob">
+              <div class="mp-knob-indicator"></div>
+            </div>
+          </div>
+          <div class="mp-volume-info">
+            <span class="mp-volume-icon"
+              ><svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <g clip-path="url(#clip0_vol)">
+                  <path
+                    d="M6.34251 2.7112C6.34239 2.63089 6.31849 2.55241 6.27382 2.48567C6.22914 2.41893 6.1657 2.36692 6.0915 2.33621C6.0173 2.30549 5.93566 2.29744 5.85688 2.31308C5.77811 2.32871 5.70573 2.36733 5.64889 2.42406L3.69775 4.37462C3.62245 4.45037 3.53287 4.51042 3.4342 4.5513C3.33552 4.59217 3.22971 4.61306 3.12291 4.61275H1.7299C1.57698 4.61275 1.43032 4.67349 1.3222 4.78162C1.21407 4.88975 1.15332 5.03641 1.15332 5.18932V8.64878C1.15332 8.8017 1.21407 8.94835 1.3222 9.05648C1.43032 9.16461 1.57698 9.22536 1.7299 9.22536H3.12291C3.22971 9.22505 3.33552 9.24593 3.4342 9.28681C3.53287 9.32768 3.62245 9.38774 3.69775 9.46349L5.64831 11.4146C5.70516 11.4716 5.77764 11.5104 5.85657 11.5261C5.93549 11.5419 6.01731 11.5338 6.09166 11.503C6.166 11.4722 6.22953 11.42 6.27418 11.353C6.31884 11.2861 6.34262 11.2074 6.34251 11.1269V2.7112Z"
+                    stroke="#99A1AF"
+                    stroke-width="1.15315"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M9.22559 5.18921C9.59985 5.68822 9.80216 6.29517 9.80216 6.91894C9.80216 7.54271 9.59985 8.14965 9.22559 8.64867"
+                    stroke="#99A1AF"
+                    stroke-width="1.15315"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M11.165 10.5883C11.6469 10.1064 12.0291 9.53438 12.2899 8.9048C12.5507 8.27521 12.6849 7.60043 12.6849 6.91897C12.6849 6.23751 12.5507 5.56272 12.2899 4.93314C12.0291 4.30355 11.6469 3.7315 11.165 3.24963"
+                    stroke="#99A1AF"
+                    stroke-width="1.15315"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </g>
+                <defs>
+                  <clipPath id="clip0_vol">
+                    <rect width="13.8378" height="13.8378" fill="white" />
+                  </clipPath>
+                </defs></svg
+            ></span>
+            <span class="mp-volume-val">58</span>
           </div>
         </div>
-        <div class="mp-volume-info">
-          <span class="mp-volume-icon"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_vol)"><path d="M6.34251 2.7112C6.34239 2.63089 6.31849 2.55241 6.27382 2.48567C6.22914 2.41893 6.1657 2.36692 6.0915 2.33621C6.0173 2.30549 5.93566 2.29744 5.85688 2.31308C5.77811 2.32871 5.70573 2.36733 5.64889 2.42406L3.69775 4.37462C3.62245 4.45037 3.53287 4.51042 3.4342 4.5513C3.33552 4.59217 3.22971 4.61306 3.12291 4.61275H1.7299C1.57698 4.61275 1.43032 4.67349 1.3222 4.78162C1.21407 4.88975 1.15332 5.03641 1.15332 5.18932V8.64878C1.15332 8.8017 1.21407 8.94835 1.3222 9.05648C1.43032 9.16461 1.57698 9.22536 1.7299 9.22536H3.12291C3.22971 9.22505 3.33552 9.24593 3.4342 9.28681C3.53287 9.32768 3.62245 9.38774 3.69775 9.46349L5.64831 11.4146C5.70516 11.4716 5.77764 11.5104 5.85657 11.5261C5.93549 11.5419 6.01731 11.5338 6.09166 11.503C6.166 11.4722 6.22953 11.42 6.27418 11.353C6.31884 11.2861 6.34262 11.2074 6.34251 11.1269V2.7112Z" stroke="#99A1AF" stroke-width="1.15315" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.22559 5.18921C9.59985 5.68822 9.80216 6.29517 9.80216 6.91894C9.80216 7.54271 9.59985 8.14965 9.22559 8.64867" stroke="#99A1AF" stroke-width="1.15315" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.165 10.5883C11.6469 10.1064 12.0291 9.53438 12.2899 8.9048C12.5507 8.27521 12.6849 7.60043 12.6849 6.91897C12.6849 6.23751 12.5507 5.56272 12.2899 4.93314C12.0291 4.30355 11.6469 3.7315 11.165 3.24963" stroke="#99A1AF" stroke-width="1.15315" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="clip0_vol"><rect width="13.8378" height="13.8378" fill="white"/></clipPath></defs></svg></span>
-          <span class="mp-volume-val">58</span>
-        </div>
-      </div>
 
-      <!-- Center: LCD display + transport controls -->
-      <div class="mp-center">
-        <div class="mp-lcd">
-          <div class="mp-lcd-top">
-            <span class="mp-lcd-source"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_bt)"><path d="M4.03613 4.03608L9.8019 9.80185L6.91902 12.6847V1.1532L9.8019 4.03608L4.03613 9.80185" stroke="#D1D5DC" stroke-width="1.15315" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="clip0_bt"><rect width="13.8378" height="13.8378" fill="white"/></clipPath></defs></svg> BT</span>
-            <span class="mp-lcd-time"><span id="mp-current-time">0:00</span> / <span id="mp-duration">0:00</span></span>
+        <!-- Center: LCD display + transport controls -->
+        <div class="mp-center">
+          <div class="mp-lcd">
+            <div class="mp-lcd-top">
+              <span class="mp-lcd-source"
+                ><svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <g clip-path="url(#clip0_bt)">
+                    <path
+                      d="M4.03613 4.03608L9.8019 9.80185L6.91902 12.6847V1.1532L9.8019 4.03608L4.03613 9.80185"
+                      stroke="#D1D5DC"
+                      stroke-width="1.15315"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </g>
+                  <defs>
+                    <clipPath id="clip0_bt">
+                      <rect width="13.8378" height="13.8378" fill="white" />
+                    </clipPath>
+                  </defs>
+                </svg>
+                BT</span
+              >
+              <span class="mp-lcd-time"
+                ><span id="mp-current-time">0:00</span> /
+                <span id="mp-duration">0:00</span></span
+              >
+            </div>
+            <div class="mp-lcd-title" id="mp-title">SONG TITLE</div>
+            <div class="mp-lcd-artist" id="mp-artist">ARTIST NAME</div>
+            <div class="mp-lcd-progress">
+              <div class="mp-lcd-progress-bar" id="mp-progress-bar"></div>
+            </div>
           </div>
-          <div class="mp-lcd-title" id="mp-title">SONG TITLE</div>
-          <div class="mp-lcd-artist" id="mp-artist">ARTIST NAME</div>
-          <div class="mp-lcd-progress">
-            <div class="mp-lcd-progress-bar" id="mp-progress-bar"></div>
+          <div class="mp-controls">
+            <button class="mp-ctrl-btn" id="mp-shuffle" title="Shuffle">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="16 3 21 3 21 8" />
+                <line x1="4" y1="20" x2="21" y2="3" />
+                <polyline points="21 16 21 21 16 21" />
+                <line x1="15" y1="15" x2="21" y2="21" />
+                <line x1="4" y1="4" x2="9" y2="9" />
+              </svg>
+            </button>
+            <button
+              class="mp-ctrl-btn mp-ctrl-btn-lg"
+              id="mp-prev"
+              title="Previous"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <rect x="3" y="5" width="3" height="14" />
+                <polygon points="21 5 10 12 21 19 21 5" />
+              </svg>
+            </button>
+            <button class="mp-play-btn" id="mp-play" title="Play">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                id="mp-play-icon"
+              >
+                <polygon points="6 3 20 12 6 21 6 3" />
+              </svg>
+            </button>
+            <button
+              class="mp-ctrl-btn mp-ctrl-btn-lg"
+              id="mp-next"
+              title="Next"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <rect x="18" y="5" width="3" height="14" />
+                <polygon points="3 5 14 12 3 19 3 5" />
+              </svg>
+            </button>
+            <button class="mp-ctrl-btn" id="mp-repeat" title="Repeat">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="17 1 21 5 17 9" />
+                <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                <polyline points="7 23 3 19 7 15" />
+                <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+              </svg>
+            </button>
           </div>
         </div>
-        <div class="mp-controls">
-          <button class="mp-ctrl-btn" id="mp-shuffle" title="Shuffle">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+
+        <!-- Right column: preset buttons 1-6 -->
+        <div class="mp-presets">
+          <button class="mp-preset-btn mp-preset-active" data-preset="0">
+            1
           </button>
-          <button class="mp-ctrl-btn mp-ctrl-btn-lg" id="mp-prev" title="Previous">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="5" width="3" height="14"/><polygon points="21 5 10 12 21 19 21 5"/></svg>
-          </button>
-          <button class="mp-play-btn" id="mp-play" title="Play">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" id="mp-play-icon"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-          </button>
-          <button class="mp-ctrl-btn mp-ctrl-btn-lg" id="mp-next" title="Next">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="18" y="5" width="3" height="14"/><polygon points="3 5 14 12 3 19 3 5"/></svg>
-          </button>
-          <button class="mp-ctrl-btn" id="mp-repeat" title="Repeat">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-          </button>
+          <button class="mp-preset-btn" data-preset="1">2</button>
+          <button class="mp-preset-btn" data-preset="2">3</button>
+          <button class="mp-preset-btn" data-preset="3">4</button>
+          <button class="mp-preset-btn" data-preset="4">5</button>
+          <button class="mp-preset-btn" data-preset="5">6</button>
         </div>
       </div>
+    </div>
 
-      <!-- Right column: preset buttons 1-6 -->
-      <div class="mp-presets">
-        <button class="mp-preset-btn mp-preset-active" data-preset="0">1</button>
-        <button class="mp-preset-btn" data-preset="1">2</button>
-        <button class="mp-preset-btn" data-preset="2">3</button>
-        <button class="mp-preset-btn" data-preset="3">4</button>
-        <button class="mp-preset-btn" data-preset="4">5</button>
-        <button class="mp-preset-btn" data-preset="5">6</button>
+    <div
+      id="legend-toggle"
+      onclick="document.getElementById('legend').classList.toggle('open')"
+    >
+      ?
+    </div>
+    <div id="legend">
+      <div class="legend-status">Time: <span id="time-status">--:--</span></div>
+      <div class="legend-status">
+        Room: <span id="room-status">new (textured)</span>
+      </div>
+      <div class="legend-row">
+        <kbd>R</kbd> <span>Toggle room (new / old)</span>
+      </div>
+      <div class="legend-row">
+        <kbd>C</kbd> <span>Camera mode (mouse / orbit)</span>
+      </div>
+      <div class="legend-row">
+        <kbd>L</kbd> <span>Light override (auto / manual)</span>
+      </div>
+      <div class="legend-row"><kbd>H</kbd> <span>Debug helpers</span></div>
+      <div class="legend-divider"></div>
+      <div class="legend-label">Time Sim</div>
+      <div class="legend-sim-row">
+        <input
+          type="range"
+          id="time-slider"
+          min="0"
+          max="24"
+          step="0.05"
+          value="12"
+        />
+      </div>
+      <div class="legend-sim-row">
+        <button
+          class="sim-btn"
+          id="sim-speed-0"
+          title="Paused — drag slider only"
+        >
+          ||
+        </button>
+        <button class="sim-btn" id="sim-speed-1" title="1 hour per minute">
+          1x
+        </button>
+        <button class="sim-btn" id="sim-speed-6" title="6 hours per minute">
+          6x
+        </button>
+        <button class="sim-btn" id="sim-speed-24" title="Full day per minute">
+          24x
+        </button>
+        <button
+          class="sim-btn sim-btn-reset"
+          id="sim-reset"
+          title="Back to real time"
+        >
+          Live
+        </button>
       </div>
     </div>
-  </div>
 
-  <div id="legend-toggle" onclick="document.getElementById('legend').classList.toggle('open')">?</div>
-  <div id="legend">
-    <div class="legend-status">Time: <span id="time-status">--:--</span></div>
-    <div class="legend-status">Room: <span id="room-status">new (textured)</span></div>
-    <div class="legend-row"><kbd>R</kbd> <span>Toggle room (new / old)</span></div>
-    <div class="legend-row"><kbd>C</kbd> <span>Camera mode (mouse / orbit)</span></div>
-    <div class="legend-row"><kbd>L</kbd> <span>Light override (auto / manual)</span></div>
-    <div class="legend-row"><kbd>H</kbd> <span>Debug helpers</span></div>
-    <div class="legend-divider"></div>
-    <div class="legend-label">Time Sim</div>
-    <div class="legend-sim-row">
-      <input type="range" id="time-slider" min="0" max="24" step="0.05" value="12">
-    </div>
-    <div class="legend-sim-row">
-      <button class="sim-btn" id="sim-speed-0" title="Paused — drag slider only">||</button>
-      <button class="sim-btn" id="sim-speed-1" title="1 hour per minute">1x</button>
-      <button class="sim-btn" id="sim-speed-6" title="6 hours per minute">6x</button>
-      <button class="sim-btn" id="sim-speed-24" title="Full day per minute">24x</button>
-      <button class="sim-btn sim-btn-reset" id="sim-reset" title="Back to real time">Live</button>
-    </div>
-  </div>
-
-  <script type="module" src="/main.js"></script>
-</body>
+    <script type="module" src="/main.js"></script>
+  </body>
 </html>

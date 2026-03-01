@@ -298,6 +298,7 @@ const hotspotConfig = {
   BOOTH_DJ: { elementId: "hotspot-booth", offsetY: 2.5 },
   FRAME_LEFT_1: { elementId: "hotspot-frame-left-1", offsetY: 1.5 },
   Hanger_1: { elementId: "hotspot-rack", offsetY: 1.0 },
+  TABLE: { elementId: "hotspot-table", offsetY: 1.5 },
 };
 const hotspots = []; // populated after model loads
 
@@ -357,7 +358,10 @@ function loadTrack(index) {
 
   // Update preset button active state
   document.querySelectorAll(".mp-preset-btn").forEach((btn) => {
-    btn.classList.toggle("mp-preset-active", parseInt(btn.dataset.preset) === index);
+    btn.classList.toggle(
+      "mp-preset-active",
+      parseInt(btn.dataset.preset) === index,
+    );
   });
 }
 
@@ -405,7 +409,9 @@ function prevTrack() {
     mediaPlayer.audio.currentTime = 0;
     return;
   }
-  let prev = (mediaPlayer.currentIndex - 1 + mediaPlayer.playlist.length) % mediaPlayer.playlist.length;
+  let prev =
+    (mediaPlayer.currentIndex - 1 + mediaPlayer.playlist.length) %
+    mediaPlayer.playlist.length;
   loadTrack(prev);
   if (mediaPlayer.playing) playTrack();
 }
@@ -416,7 +422,8 @@ function updatePlayIcon() {
   if (!icon) return;
   if (mediaPlayer.playing) {
     // Pause icon (two bars)
-    icon.innerHTML = '<rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/>';
+    icon.innerHTML =
+      '<rect x="5" y="3" width="4" height="18"/><rect x="15" y="3" width="4" height="18"/>';
   } else {
     // Play icon (triangle)
     icon.innerHTML = '<polygon points="6 3 20 12 6 21 6 3"/>';
@@ -435,7 +442,8 @@ function formatTime(seconds) {
 mediaPlayer.audio.addEventListener("timeupdate", () => {
   const currentTimeEl = document.getElementById("mp-current-time");
   const progressBar = document.getElementById("mp-progress-bar");
-  if (currentTimeEl) currentTimeEl.textContent = formatTime(mediaPlayer.audio.currentTime);
+  if (currentTimeEl)
+    currentTimeEl.textContent = formatTime(mediaPlayer.audio.currentTime);
   if (progressBar && mediaPlayer.audio.duration) {
     progressBar.style.width = `${(mediaPlayer.audio.currentTime / mediaPlayer.audio.duration) * 100}%`;
   }
@@ -443,7 +451,8 @@ mediaPlayer.audio.addEventListener("timeupdate", () => {
 
 mediaPlayer.audio.addEventListener("loadedmetadata", () => {
   const durationEl = document.getElementById("mp-duration");
-  if (durationEl) durationEl.textContent = formatTime(mediaPlayer.audio.duration);
+  if (durationEl)
+    durationEl.textContent = formatTime(mediaPlayer.audio.duration);
 });
 
 mediaPlayer.audio.addEventListener("ended", () => {
@@ -462,12 +471,16 @@ document.getElementById("mp-prev")?.addEventListener("click", prevTrack);
 
 document.getElementById("mp-shuffle")?.addEventListener("click", () => {
   mediaPlayer.shuffle = !mediaPlayer.shuffle;
-  document.getElementById("mp-shuffle")?.classList.toggle("active", mediaPlayer.shuffle);
+  document
+    .getElementById("mp-shuffle")
+    ?.classList.toggle("active", mediaPlayer.shuffle);
 });
 
 document.getElementById("mp-repeat")?.addEventListener("click", () => {
   mediaPlayer.repeat = !mediaPlayer.repeat;
-  document.getElementById("mp-repeat")?.classList.toggle("active", mediaPlayer.repeat);
+  document
+    .getElementById("mp-repeat")
+    ?.classList.toggle("active", mediaPlayer.repeat);
 });
 
 // Preset buttons
