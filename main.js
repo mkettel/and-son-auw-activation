@@ -1262,27 +1262,45 @@ gltfLoader.load(
       );
     });
 
-    // ============ LOAD SOPRANOS FRAME MODEL ============
-    gltfLoader.load("/models/SOPRANOS FRAME/SOPRANOS FRAME.gltf", (sopGltf) => {
-      const sopModel = sopGltf.scene;
-      sopModel.rotation.y = -1.1;
+    // ============ NYC IMAGE IN WINDOW ============
+    const windowMesh = model.getObjectByName("WINDOW");
+    if (windowMesh) {
+      const windowBox = new THREE.Box3().setFromObject(windowMesh);
+      const windowCenter = windowBox.getCenter(new THREE.Vector3());
+      const windowSize = windowBox.getSize(new THREE.Vector3());
 
-      sopModel.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-          if (child.material) {
-            child.material.envMapIntensity = 0.9;
-          }
-        }
+      const nycTextureLoader = new THREE.TextureLoader();
+      nycTextureLoader.load("/images/nyc-img.png", (nycTexture) => {
+        nycTexture.colorSpace = THREE.SRGBColorSpace;
+
+        // Size the plane to fill the window
+        const planeW = Math.max(windowSize.x, windowSize.z) * 0.95;
+        const planeH = windowSize.y * 0.95;
+        const nycGeom = new THREE.PlaneGeometry(planeW, planeH);
+        const nycMat = new THREE.MeshBasicMaterial({
+          map: nycTexture,
+          side: THREE.DoubleSide,
+          toneMapped: false,
+        });
+
+        const nycPlane = new THREE.Mesh(nycGeom, nycMat);
+        nycPlane.position.copy(windowCenter);
+
+        // Orient plane to face the room (window faces inward along +Z)
+        const wallNormal = new THREE.Vector3(0, 0, -1);
+        wallNormal.applyQuaternion(
+          new THREE.Quaternion().setFromEuler(model.rotation),
+        );
+        nycPlane.lookAt(nycPlane.position.clone().add(wallNormal));
+
+        // Nudge slightly in front of the window glass
+        nycPlane.position.add(wallNormal.clone().multiplyScalar(-0.05));
+
+        scene.add(nycPlane);
+        window.nycPlane = nycPlane;
+        console.log("NYC image placed in window at:", nycPlane.position.toArray().map((v) => +v.toFixed(2)));
       });
-
-      scene.add(sopModel);
-      window.sopModel = sopModel;
-      console.log(
-        "Sopranos Frame loaded. Adjust with: sopModel.position.set(x, y, z)",
-      );
-    });
+    }
 
     // ============ LOAD SCONCE MODEL ============
     gltfLoader.load("/models/sconce/sconce.gltf", (sconceGltf) => {
