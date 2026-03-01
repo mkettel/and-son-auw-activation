@@ -308,11 +308,11 @@ body {
 
 .hotspot-dot {
   position: relative;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 0 8px 2px rgba(255, 255, 255, 0.45);
+  background: #000000;
+  box-shadow: 0 0 8px 2px rgba(0, 0, 0, 0.45);
   animation: hotspot-pulse 2.4s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -325,7 +325,7 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  border: 1.5px solid rgba(0, 0, 0, 0.5);
   transform: translate(-50%, -50%) scale(1);
   animation: hotspot-ring 2.4s ease-out infinite;
 }
