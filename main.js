@@ -14,12 +14,15 @@ import Stats from "three/addons/libs/stats.module.js";
 // ============ PCSS SOFT SHADOWS (like Drei's SoftShadows) ============
 const pcssConfig = {
   size: 25, // Light size - larger = softer shadows
-  samples: 10, // Quality - more samples = smoother but slower
+  samples: 8, // Quality - more samples = smoother but slower
   focus: 0, // Focus point - 0 = auto
 };
 window.pcssConfig = pcssConfig;
 
 // ============ SUN CYCLE CONFIG ============
+const LIVE_TIME = false; // true = sun follows real clock, false = fixed at staticHour
+const STATIC_HOUR = 7.5; // 7:30 AM — only used when LIVE_TIME is false
+
 const sunCycleConfig = {
   sunrise: 6, // 6 AM
   sunset: 19, // 7 PM
@@ -265,9 +268,6 @@ const cameraLookCurrent = new THREE.Vector3();
 const cameraLookRange = { x: 2, y: 1 };
 
 // Raycaster for DJ booth hover detection
-const raycaster = new THREE.Raycaster();
-const raycasterMouse = new THREE.Vector2();
-const boothHover = { isHovered: false, mesh: null, decal: null };
 
 // ============ CLICK-TO-FOCUS CAMERA SYSTEM ============
 // Declarative map of clickable mesh names → camera behavior
@@ -505,7 +505,6 @@ const cameraFocus = {
   previousCameraMode: null,
 };
 const focusMeshMap = new Map(); // Mesh → config (populated after model loads)
-const focusMeshList = []; // flat array for raycaster
 
 // Close button reference
 const focusCloseBtn = document.getElementById("focus-close-btn");
@@ -670,8 +669,6 @@ function finishFocusReturn() {
 window.addEventListener("mousemove", (e) => {
   mouseTarget.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouseTarget.y = -(e.clientY / window.innerHeight) * 2 + 1;
-  raycasterMouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-  raycasterMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 });
 
 // OrbitControls setup
@@ -697,24 +694,6 @@ window.addEventListener("keydown", (e) => {
     }
 
     console.log("Camera mode:", cameraConfig.mode);
-  }
-});
-
-// Click handler for focus targets (X button / Escape to exit, not click)
-canvas.addEventListener("click", (e) => {
-  if (cameraFocus.active || cameraFocus.transitioning) return;
-  if (focusMeshList.length === 0) return;
-
-  const clickMouse = new THREE.Vector2(
-    (e.clientX / window.innerWidth) * 2 - 1,
-    -(e.clientY / window.innerHeight) * 2 + 1,
-  );
-  raycaster.setFromCamera(clickMouse, camera);
-  const hits = raycaster.intersectObjects(focusMeshList, false);
-  if (hits.length > 0) {
-    const hitMesh = hits[0].object;
-    const config = focusMeshMap.get(hitMesh);
-    if (config) enterFocusMode(hitMesh, config);
   }
 });
 
@@ -953,18 +932,25 @@ gltfLoader.load(
 
       // Add room materials to light switch system if already initialized
       if (window.lightSwitch) {
+        const isMoody =
+          window.lightSwitch.mode === "moody" ||
+          window.lightSwitch.mode === "night";
         roomModel.traverse((child) => {
           if (
             child.isMesh &&
             child.material &&
             child.material.envMapIntensity !== undefined
           ) {
+            const offVal = 0.55;
+            const onVal = child.material.envMapIntensity;
+            const initVal = isMoody ? offVal : onVal;
+            child.material.envMapIntensity = initVal;
             window.lightSwitch.materials.push({
               material: child.material,
-              onIntensity: child.material.envMapIntensity,
-              offIntensity: 0.55,
-              current: child.material.envMapIntensity,
-              target: child.material.envMapIntensity,
+              onIntensity: onVal,
+              offIntensity: offVal,
+              current: initVal,
+              target: initVal,
             });
           }
         });
@@ -983,8 +969,9 @@ gltfLoader.load(
     }
     if (logoMesh) {
       // Bring logo forward off the wall (local Z) and rotate around Z axis
-      logoMesh.translateZ(0.3);
+      logoMesh.translateZ(-1.0);
       logoMesh.translateY(2.8);
+      logoMesh.scale.set(14.8, 14.8, 14.8);
       window.logoMesh = logoMesh;
     }
 
@@ -1016,7 +1003,6 @@ gltfLoader.load(
     const boothMesh = model.getObjectByName("BOOTH_DJ");
     if (boothMesh) {
       // Store booth mesh ref for raycasting
-      boothHover.mesh = boothMesh;
 
       const textureLoader = new THREE.TextureLoader();
       textureLoader.load("/textures/test-decal.png", (texture) => {
@@ -1045,13 +1031,11 @@ gltfLoader.load(
         scene.add(decal);
 
         // Store decal ref for hover detection
-        boothHover.decal = decal;
 
         // Register decal as a click target so clicking the logo also focuses the booth
         const boothConfig = focusTargets.BOOTH_DJ;
         if (boothConfig && boothMesh) {
           focusMeshMap.set(decal, { ...boothConfig, focusMesh: boothMesh });
-          focusMeshList.push(decal);
         }
 
         window.decal = decal;
@@ -1083,7 +1067,6 @@ gltfLoader.load(
       const mesh = model.getObjectByName(meshName);
       if (mesh) {
         focusMeshMap.set(mesh, config);
-        focusMeshList.push(mesh);
         console.log(`Focus target resolved: ${meshName}`);
 
         // Skip video plane for non-frame targets
@@ -1298,7 +1281,10 @@ gltfLoader.load(
 
         scene.add(nycPlane);
         window.nycPlane = nycPlane;
-        console.log("NYC image placed in window at:", nycPlane.position.toArray().map((v) => +v.toFixed(2)));
+        console.log(
+          "NYC image placed in window at:",
+          nycPlane.position.toArray().map((v) => +v.toFixed(2)),
+        );
       });
     }
 
@@ -1421,8 +1407,8 @@ gltfLoader.load(
     sunLight.castShadow = true;
 
     // Shadow settings — wide frustum to cover entire room without clipping
-    sunLight.shadow.mapSize.width = 4096;
-    sunLight.shadow.mapSize.height = 4096;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
     sunLight.shadow.camera.near = 0.5;
     sunLight.shadow.camera.far = 120;
     sunLight.shadow.camera.left = -50;
@@ -1458,7 +1444,8 @@ gltfLoader.load(
 
     // Room lights (on when bright) vs practical lights (on when dark)
     window.lightSwitch = {
-      on: true, // room lights on
+      on: false,
+      mode: "moody", // "day" | "night" | "moody"
       roomLights: [
         { light: ambientLight, onIntensity: 0.15, current: 0.15, target: 0.15 },
         { light: sunLight, onIntensity: 6, current: 6, target: 6 },
@@ -1478,12 +1465,15 @@ gltfLoader.load(
       materials: allMaterials,
     };
 
-    // Initialize sun cycle state based on current time
+    // Initialize sun cycle state
     {
-      const date = new Date();
-      const currentHour =
-        date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
-      const sun = getSunPosition(currentHour);
+      const initHour = LIVE_TIME
+        ? (() => {
+            const d = new Date();
+            return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+          })()
+        : STATIC_HOUR;
+      const sun = getSunPosition(initHour);
 
       sunCycle.targetPosition.copy(sun.position);
       sunCycle.currentPosition.copy(sun.position);
@@ -1498,57 +1488,74 @@ gltfLoader.load(
       sunLight.intensity = sun.intensity;
       sunLight.color.copy(sun.color);
 
-      if (sunCycle.isNight) {
-        // Night: practical lights on, ambient dimmed
-        window.lightSwitch.on = false;
-        window.lightSwitch.roomLights.forEach((l) => {
-          if (l.light === sunLight) return;
-          l.current = 0.02;
-          l.target = 0.02;
-          l.light.intensity = 0.02;
-        });
-        window.lightSwitch.practicalLights.forEach((l) => {
-          l.current = l.onIntensity;
-          l.target = l.onIntensity;
-          l.light.intensity = l.onIntensity;
-        });
-        window.lightSwitch.materials.forEach((m) => {
-          m.current = m.offIntensity;
-          m.target = m.offIntensity;
-          m.material.envMapIntensity = m.offIntensity;
-        });
-      } else {
-        // Day: practical lights off
-        window.lightSwitch.practicalLights.forEach(
-          (l) => (l.light.intensity = 0),
-        );
-      }
+      // Default to moody: sun drives shadows, room lights off, practicals on
+      window.lightSwitch.roomLights.forEach((l) => {
+        if (l.light === sunLight) return;
+        l.current = 0;
+        l.target = 0;
+        l.light.intensity = 0;
+      });
+      window.lightSwitch.practicalLights.forEach((l) => {
+        l.current = l.onIntensity;
+        l.target = l.onIntensity;
+        l.light.intensity = l.onIntensity;
+      });
+      window.lightSwitch.materials.forEach((m) => {
+        m.current = m.offIntensity;
+        m.target = m.offIntensity;
+        m.material.envMapIntensity = m.offIntensity;
+      });
     }
 
     window.addEventListener("keydown", (e) => {
       if (e.key === "l" || e.key === "L") {
-        if (sunCycle.override) {
-          // Second press: release override, return to auto mode
-          sunCycle.override = false;
-          console.log("Light override OFF — returning to auto sun cycle");
-        } else {
-          // First press: enable override and toggle lights
+        const ls = window.lightSwitch;
+        if (ls.mode === "day") {
+          // Day → Night: room lights off, practicals on, smooth lerp
+          ls.mode = "night";
+          ls.on = false;
           sunCycle.override = true;
-          window.lightSwitch.on = !window.lightSwitch.on;
-          const on = window.lightSwitch.on;
-          // Room lights: on when bright
-          window.lightSwitch.roomLights.forEach((l) => {
-            l.target = on ? l.onIntensity : 0;
+          ls.roomLights.forEach((l) => {
+            l.target = 0;
           });
-          // Practical lights: on when dark (opposite)
-          window.lightSwitch.practicalLights.forEach((l) => {
-            l.target = on ? 0 : l.onIntensity;
+          ls.practicalLights.forEach((l) => {
+            l.target = l.onIntensity;
           });
-          // Materials envMapIntensity: high when bright, low when dark
-          window.lightSwitch.materials.forEach((m) => {
-            m.target = on ? m.onIntensity : m.offIntensity;
+          ls.materials.forEach((m) => {
+            m.target = m.offIntensity;
           });
-          console.log("Light override ON — lights:", on ? "ON" : "OFF");
+          console.log("Light mode: NIGHT");
+        } else if (ls.mode === "night") {
+          // Night → Moody: sun cycle resumes (harsh directional shadows),
+          // all other room lights stay off, practicals on, envMap stays low
+          ls.mode = "moody";
+          ls.on = false;
+          sunCycle.override = false; // sun cycle drives sunLight directly
+          ls.roomLights.forEach((l) => {
+            l.target = 0;
+          });
+          ls.practicalLights.forEach((l) => {
+            l.target = l.onIntensity;
+          });
+          ls.materials.forEach((m) => {
+            m.target = m.offIntensity;
+          });
+          console.log("Light mode: MOODY");
+        } else {
+          // Moody → Day: everything back to normal
+          ls.mode = "day";
+          ls.on = true;
+          sunCycle.override = false;
+          ls.roomLights.forEach((l) => {
+            l.target = l.onIntensity;
+          });
+          ls.practicalLights.forEach((l) => {
+            l.target = 0;
+          });
+          ls.materials.forEach((m) => {
+            m.target = m.onIntensity;
+          });
+          console.log("Light mode: DAY");
         }
       }
     });
@@ -1649,6 +1656,7 @@ function activateSim(speed) {
   sunCycle.sim = true;
   sunCycle.simSpeed = speed;
   sunCycle.override = false; // clear L-key override so sun cycle drives lights
+  if (window.lightSwitch) window.lightSwitch.mode = "day";
   const slider = document.getElementById("time-slider");
   if (slider) slider.value = sunCycle.simHour;
   updateSimButtons();
@@ -1790,6 +1798,8 @@ function animate() {
       let currentHour;
       if (sunCycle.sim) {
         currentHour = sunCycle.simHour;
+      } else if (!LIVE_TIME) {
+        currentHour = STATIC_HOUR;
       } else {
         const date = new Date();
         currentHour =
@@ -1806,8 +1816,12 @@ function animate() {
       const wasNight = sunCycle.isNight;
       sunCycle.isNight = sun.intensity < 0.1;
 
-      // Auto-toggle practical lights when day/night changes (unless overridden)
-      if (!sunCycle.override && wasNight !== sunCycle.isNight) {
+      // Auto-toggle practical lights when day/night changes (unless overridden or moody)
+      if (
+        !sunCycle.override &&
+        window.lightSwitch.mode !== "moody" &&
+        wasNight !== sunCycle.isNight
+      ) {
         const on = !sunCycle.isNight; // lights "on" = daytime = sun is up
         window.lightSwitch.on = on;
         // Room lights (ambient): dim at night but don't go to zero
@@ -1873,28 +1887,6 @@ function animate() {
 
     // Update shadow camera to follow sun
     window.sunLight.shadow.camera.updateProjectionMatrix();
-  }
-
-  // ============ DJ BOOTH HOVER GLOW + FOCUS TARGET HOVER ============
-  if (boothHover.mesh) {
-    // Raycast against booth mesh + decal + focus targets
-    raycaster.setFromCamera(raycasterMouse, camera);
-    const hoverTargets = [boothHover.mesh];
-    if (boothHover.decal) hoverTargets.push(boothHover.decal);
-    const allHoverTargets = hoverTargets.concat(focusMeshList);
-    const intersects = raycaster.intersectObjects(allHoverTargets, false);
-
-    // Determine what was hit
-    const boothHit = intersects.some(
-      (h) => h.object === boothHover.mesh || h.object === boothHover.decal,
-    );
-    const focusHit = intersects.some((h) => focusMeshMap.has(h.object));
-    const anyPointerTarget = boothHit || focusHit;
-
-    boothHover.isHovered = boothHit;
-
-    // Pointer cursor for booth or focus targets
-    document.body.style.cursor = anyPointerTarget ? "pointer" : "";
   }
 
   // Hide/show hotspots during focus mode
