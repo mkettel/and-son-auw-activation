@@ -306,18 +306,19 @@ const hotspots = []; // populated after model loads
 const mediaPlayer = {
   el: document.getElementById("media-player"),
   playlist: [
-    { title: "BEN'S FRIEND'S SONG", artist: "ARTIST NAME", src: "" },
-    { title: "TRACK TWO", artist: "ARTIST NAME", src: "" },
-    { title: "TRACK THREE", artist: "ARTIST NAME", src: "" },
-    { title: "TRACK FOUR", artist: "ARTIST NAME", src: "" },
-    { title: "TRACK FIVE", artist: "ARTIST NAME", src: "" },
-    { title: "TRACK SIX", artist: "ARTIST NAME", src: "" },
+    { title: "IS MY MIC ON", artist: "LOU PHELPS", src: "/audio/Is My Mic On - Lou Phelps.mp3" },
+    { title: "4 MY CHILDREN", artist: "LOU PHELPS", src: "/audio/Lou Phelps 4 My Children.mp3" },
+    { title: "AFTER I", artist: "LOU PHELPS FT GOLDLINK", src: "/audio/Lou Phelps After I Ft Goldlink.mp3" },
+    { title: "JUNGLE", artist: "LOU PHELPS", src: "/audio/Lou Phelps JUNGLE LDMIX3MASTER2.mp3" },
+    { title: "UNDER MY SKIN", artist: "LOU PHELPS FT NONO BLACK", src: "/audio/Lou Phelps Under My Skin Ft Nono Black.mp3" },
+    { title: "TOUTES LES NANAS", artist: "LOU PHELPS", src: "/audio/Lou Phelps - Toutes les nanas (Interlude) - LDMIX5MASTER1.mp3" },
   ],
   currentIndex: 0,
   audio: new Audio(),
   playing: false,
   shuffle: false,
   repeat: false,
+  volume: 0.58,
 };
 
 /** Show the media player UI */
@@ -353,6 +354,7 @@ function loadTrack(index) {
   // Load audio if src exists
   if (track.src) {
     mediaPlayer.audio.src = track.src;
+    mediaPlayer.audio.volume = mediaPlayer.volume;
     mediaPlayer.audio.load();
   }
 
@@ -491,6 +493,110 @@ document.querySelectorAll(".mp-preset-btn").forEach((btn) => {
     if (mediaPlayer.playing) playTrack();
   });
 });
+
+// ============ VOLUME KNOB ============
+const knobEl = document.querySelector(".mp-knob");
+const knobIndicatorEl = document.querySelector(".mp-knob-indicator");
+const volumeValEl = document.querySelector(".mp-volume-val");
+const volumeIconEl = document.querySelector(".mp-volume-icon");
+
+/** Set volume (0–1), update audio, display, knob rotation, and icon */
+function setVolume(value) {
+  value = Math.max(0, Math.min(1, value));
+  mediaPlayer.volume = value;
+  mediaPlayer.audio.volume = value;
+
+  // Update numeric display
+  if (volumeValEl) volumeValEl.textContent = Math.round(value * 100);
+
+  // Rotate knob indicator: 0 → -135°, 1 → 135° (270° sweep)
+  if (knobIndicatorEl) {
+    const deg = -135 + value * 270;
+    knobIndicatorEl.style.transform = `translate(-50%, -100%) rotate(${deg}deg)`;
+  }
+
+  // Update volume icon SVG
+  if (volumeIconEl) {
+    const svg = volumeIconEl.querySelector("svg");
+    if (svg) {
+      if (value === 0) {
+        // Muted icon (speaker with X)
+        svg.innerHTML = `<g clip-path="url(#clip0_vol)"><path d="M6.34251 2.7112C6.34239 2.63089 6.31849 2.55241 6.27382 2.48567C6.22914 2.41893 6.1657 2.36692 6.0915 2.33621C6.0173 2.30549 5.93566 2.29744 5.85688 2.31308C5.77811 2.32871 5.70573 2.36733 5.64889 2.42406L3.69775 4.37462C3.62245 4.45037 3.53287 4.51042 3.4342 4.5513C3.33552 4.59217 3.22971 4.61306 3.12291 4.61275H1.7299C1.57698 4.61275 1.43032 4.67349 1.3222 4.78162C1.21407 4.88975 1.15332 5.03641 1.15332 5.18932V8.64878C1.15332 8.8017 1.21407 8.94835 1.3222 9.05648C1.43032 9.16461 1.57698 9.22536 1.7299 9.22536H3.12291C3.22971 9.22505 3.33552 9.24593 3.4342 9.28681C3.53287 9.32768 3.62245 9.38774 3.69775 9.46349L5.64831 11.4146C5.70516 11.4716 5.77764 11.5104 5.85657 11.5261C5.93549 11.5419 6.01731 11.5338 6.09166 11.503C6.166 11.4722 6.22953 11.42 6.27418 11.353C6.31884 11.2861 6.34262 11.2074 6.34251 11.1269V2.7112Z" stroke="#99A1AF" stroke-width="1.15315" stroke-linecap="round" stroke-linejoin="round"/><line x1="9" y1="5.5" x2="12" y2="8.5" stroke="#99A1AF" stroke-width="1.15315" stroke-linecap="round"/><line x1="12" y1="5.5" x2="9" y2="8.5" stroke="#99A1AF" stroke-width="1.15315" stroke-linecap="round"/></g><defs><clipPath id="clip0_vol"><rect width="13.8378" height="13.8378" fill="white"/></clipPath></defs>`;
+      } else if (value < 0.5) {
+        // Low volume (speaker with one wave)
+        svg.innerHTML = `<g clip-path="url(#clip0_vol)"><path d="M6.34251 2.7112C6.34239 2.63089 6.31849 2.55241 6.27382 2.48567C6.22914 2.41893 6.1657 2.36692 6.0915 2.33621C6.0173 2.30549 5.93566 2.29744 5.85688 2.31308C5.77811 2.32871 5.70573 2.36733 5.64889 2.42406L3.69775 4.37462C3.62245 4.45037 3.53287 4.51042 3.4342 4.5513C3.33552 4.59217 3.22971 4.61306 3.12291 4.61275H1.7299C1.57698 4.61275 1.43032 4.67349 1.3222 4.78162C1.21407 4.88975 1.15332 5.03641 1.15332 5.18932V8.64878C1.15332 8.8017 1.21407 8.94835 1.3222 9.05648C1.43032 9.16461 1.57698 9.22536 1.7299 9.22536H3.12291C3.22971 9.22505 3.33552 9.24593 3.4342 9.28681C3.53287 9.32768 3.62245 9.38774 3.69775 9.46349L5.64831 11.4146C5.70516 11.4716 5.77764 11.5104 5.85657 11.5261C5.93549 11.5419 6.01731 11.5338 6.09166 11.503C6.166 11.4722 6.22953 11.42 6.27418 11.353C6.31884 11.2861 6.34262 11.2074 6.34251 11.1269V2.7112Z" stroke="#99A1AF" stroke-width="1.15315" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.22559 5.18921C9.59985 5.68822 9.80216 6.29517 9.80216 6.91894C9.80216 7.54271 9.59985 8.14965 9.22559 8.64867" stroke="#99A1AF" stroke-width="1.15315" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="clip0_vol"><rect width="13.8378" height="13.8378" fill="white"/></clipPath></defs>`;
+      } else {
+        // Full volume (speaker with two waves) — original icon
+        svg.innerHTML = `<g clip-path="url(#clip0_vol)"><path d="M6.34251 2.7112C6.34239 2.63089 6.31849 2.55241 6.27382 2.48567C6.22914 2.41893 6.1657 2.36692 6.0915 2.33621C6.0173 2.30549 5.93566 2.29744 5.85688 2.31308C5.77811 2.32871 5.70573 2.36733 5.64889 2.42406L3.69775 4.37462C3.62245 4.45037 3.53287 4.51042 3.4342 4.5513C3.33552 4.59217 3.22971 4.61306 3.12291 4.61275H1.7299C1.57698 4.61275 1.43032 4.67349 1.3222 4.78162C1.21407 4.88975 1.15332 5.03641 1.15332 5.18932V8.64878C1.15332 8.8017 1.21407 8.94835 1.3222 9.05648C1.43032 9.16461 1.57698 9.22536 1.7299 9.22536H3.12291C3.22971 9.22505 3.33552 9.24593 3.4342 9.28681C3.53287 9.32768 3.62245 9.38774 3.69775 9.46349L5.64831 11.4146C5.70516 11.4716 5.77764 11.5104 5.85657 11.5261C5.93549 11.5419 6.01731 11.5338 6.09166 11.503C6.166 11.4722 6.22953 11.42 6.27418 11.353C6.31884 11.2861 6.34262 11.2074 6.34251 11.1269V2.7112Z" stroke="#99A1AF" stroke-width="1.15315" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.22559 5.18921C9.59985 5.68822 9.80216 6.29517 9.80216 6.91894C9.80216 7.54271 9.59985 8.14965 9.22559 8.64867" stroke="#99A1AF" stroke-width="1.15315" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.165 10.5883C11.6469 10.1064 12.0291 9.53438 12.2899 8.9048C12.5507 8.27521 12.6849 7.60043 12.6849 6.91897C12.6849 6.23751 12.5507 5.56272 12.2899 4.93314C12.0291 4.30355 11.6469 3.7315 11.165 3.24963" stroke="#99A1AF" stroke-width="1.15315" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="clip0_vol"><rect width="13.8378" height="13.8378" fill="white"/></clipPath></defs>`;
+      }
+    }
+  }
+}
+
+// Knob drag interaction (mouse + touch)
+if (knobEl) {
+  let dragging = false;
+
+  // Convert pointer position to angle (degrees from 12 o'clock, CW positive)
+  function pointerAngle(clientX, clientY) {
+    const rect = knobEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = clientX - cx;
+    const dy = clientY - cy;
+    // atan2(dx, -dy) gives 0 at 12 o'clock, positive clockwise
+    return Math.atan2(dx, -dy) * (180 / Math.PI);
+  }
+
+  // Map angle to volume: -135° = 0, +135° = 1, dead zone at bottom
+  function angleToVolume(angleDeg) {
+    // Clamp to the 270° active range
+    if (angleDeg < -135) angleDeg = -135;
+    if (angleDeg > 135) angleDeg = 135;
+    return (angleDeg + 135) / 270;
+  }
+
+  function onDragStart(clientX, clientY) {
+    dragging = true;
+    document.body.style.cursor = "grabbing";
+    document.body.classList.add("knob-dragging");
+    // Immediately set volume to where the user clicked
+    setVolume(angleToVolume(pointerAngle(clientX, clientY)));
+  }
+
+  function onDragMove(clientX, clientY) {
+    if (!dragging) return;
+    setVolume(angleToVolume(pointerAngle(clientX, clientY)));
+  }
+
+  function onDragEnd() {
+    if (!dragging) return;
+    dragging = false;
+    document.body.style.cursor = "";
+    document.body.classList.remove("knob-dragging");
+  }
+
+  // Mouse events
+  knobEl.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    onDragStart(e.clientX, e.clientY);
+  });
+  document.addEventListener("mousemove", (e) => onDragMove(e.clientX, e.clientY));
+  document.addEventListener("mouseup", onDragEnd);
+
+  // Touch events
+  knobEl.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    onDragStart(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+  document.addEventListener("touchmove", (e) => {
+    if (dragging) onDragMove(e.touches[0].clientX, e.touches[0].clientY);
+  });
+  document.addEventListener("touchend", onDragEnd);
+}
+
+// Initialize volume on load
+setVolume(0.58);
 
 // Focus mode state
 const cameraFocus = {
