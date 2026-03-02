@@ -1310,6 +1310,62 @@ gltfLoader.load(
       );
     });
 
+    // ============ HAND CURSOR (2D overlay rendered from 3D model) ============
+    gltfLoader.load("/models/AND SON HAND/AND SON HAND.gltf", (handGltf) => {
+      const handModel = handGltf.scene;
+
+      // Render hand to an offscreen canvas
+      const cursorSize = 80;
+      const offRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+      offRenderer.setSize(cursorSize, cursorSize);
+      offRenderer.setPixelRatio(2);
+      offRenderer.outputColorSpace = THREE.SRGBColorSpace;
+
+      const offScene = new THREE.Scene();
+      offScene.add(new THREE.AmbientLight(0xffffff, 2));
+      const offDirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+      offDirLight.position.set(1, 2, 3);
+      offScene.add(offDirLight);
+
+      offScene.add(handModel);
+
+      // Center camera on hand model's bounding box
+      const handBox = new THREE.Box3().setFromObject(handModel);
+      const handCenter = handBox.getCenter(new THREE.Vector3());
+      const handSize = handBox.getSize(new THREE.Vector3());
+      const maxDim = Math.max(handSize.x, handSize.y, handSize.z);
+
+      const offCamera = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
+      offCamera.position.set(handCenter.x, handCenter.y, handCenter.z + maxDim * 2.5);
+      offCamera.lookAt(handCenter);
+
+      offRenderer.render(offScene, offCamera);
+
+      // Convert to image and create cursor element
+      const dataURL = offRenderer.domElement.toDataURL("image/png");
+      offRenderer.dispose();
+
+      const cursorEl = document.createElement("div");
+      cursorEl.id = "hand-cursor";
+      cursorEl.style.cssText = `
+        position: fixed; top: 0; left: 0;
+        width: ${cursorSize}px; height: ${cursorSize}px;
+        pointer-events: none; z-index: 9999;
+        background: url(${dataURL}) center/contain no-repeat;
+        transform: translate(-50%, -50%);
+        will-change: transform;
+      `;
+      document.body.appendChild(cursorEl);
+
+      // Track raw pixel position
+      window.addEventListener("mousemove", (e) => {
+        cursorEl.style.transform = `translate(${e.clientX - cursorSize / 2}px, ${e.clientY - cursorSize / 2}px)`;
+      });
+
+      window.handCursorEl = cursorEl;
+      console.log("Hand cursor ready (2D overlay)");
+    });
+
     console.log("=== ALL MESHES IN MODEL ===");
     console.log("Total count:", Object.keys(meshes).length);
     console.log("Names:", Object.keys(meshes));
@@ -1447,12 +1503,48 @@ gltfLoader.load(
       on: false,
       mode: "moody", // "day" | "night" | "moody"
       roomLights: [
-        { light: ambientLight, onIntensity: 0.15, moodyIntensity: 0, current: 0.15, target: 0.15 },
-        { light: sunLight, onIntensity: 6, moodyIntensity: 0, current: 6, target: 6 },
-        { light: hemiLight, onIntensity: 0.6, moodyIntensity: 0, current: 0.6, target: 0.6 },
-        { light: fillLeft, onIntensity: 4, moodyIntensity: 0, current: 4, target: 4 },
-        { light: fillRight, onIntensity: 4, moodyIntensity: 0, current: 4, target: 4 },
-        { light: fillCeiling, onIntensity: 3, moodyIntensity: 1.5, current: 3, target: 3 },
+        {
+          light: ambientLight,
+          onIntensity: 0.15,
+          moodyIntensity: 0,
+          current: 0.15,
+          target: 0.15,
+        },
+        {
+          light: sunLight,
+          onIntensity: 6,
+          moodyIntensity: 0,
+          current: 6,
+          target: 6,
+        },
+        {
+          light: hemiLight,
+          onIntensity: 0.6,
+          moodyIntensity: 0,
+          current: 0.6,
+          target: 0.6,
+        },
+        {
+          light: fillLeft,
+          onIntensity: 4,
+          moodyIntensity: 0,
+          current: 4,
+          target: 4,
+        },
+        {
+          light: fillRight,
+          onIntensity: 4,
+          moodyIntensity: 0,
+          current: 4,
+          target: 4,
+        },
+        {
+          light: fillCeiling,
+          onIntensity: 3,
+          moodyIntensity: 1.5,
+          current: 3,
+          target: 3,
+        },
       ],
       practicalLights: [
         // These turn ON when room lights are OFF
@@ -1899,6 +1991,7 @@ function animate() {
   if (window.logoMesh) {
     window.logoMesh.rotation.z += delta * 0.3; // ~17° per second
   }
+
 
   renderer.render(scene, camera);
   css2dRenderer.render(scene, camera);

@@ -9,6 +9,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  cursor: none !important;
 }
 
 html,
@@ -296,6 +297,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 12px;
   pointer-events: auto;
   cursor: pointer;
   opacity: 0;
