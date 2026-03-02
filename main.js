@@ -1447,12 +1447,12 @@ gltfLoader.load(
       on: false,
       mode: "moody", // "day" | "night" | "moody"
       roomLights: [
-        { light: ambientLight, onIntensity: 0.15, current: 0.15, target: 0.15 },
-        { light: sunLight, onIntensity: 6, current: 6, target: 6 },
-        { light: hemiLight, onIntensity: 0.6, current: 0.6, target: 0.6 },
-        { light: fillLeft, onIntensity: 4, current: 4, target: 4 },
-        { light: fillRight, onIntensity: 4, current: 4, target: 4 },
-        { light: fillCeiling, onIntensity: 3, current: 3, target: 3 },
+        { light: ambientLight, onIntensity: 0.15, moodyIntensity: 0, current: 0.15, target: 0.15 },
+        { light: sunLight, onIntensity: 6, moodyIntensity: 0, current: 6, target: 6 },
+        { light: hemiLight, onIntensity: 0.6, moodyIntensity: 0, current: 0.6, target: 0.6 },
+        { light: fillLeft, onIntensity: 4, moodyIntensity: 0, current: 4, target: 4 },
+        { light: fillRight, onIntensity: 4, moodyIntensity: 0, current: 4, target: 4 },
+        { light: fillCeiling, onIntensity: 3, moodyIntensity: 1.5, current: 3, target: 3 },
       ],
       practicalLights: [
         // These turn ON when room lights are OFF
@@ -1488,12 +1488,12 @@ gltfLoader.load(
       sunLight.intensity = sun.intensity;
       sunLight.color.copy(sun.color);
 
-      // Default to moody: sun drives shadows, room lights off, practicals on
+      // Default to moody: sun drives shadows, room lights off (except ceiling fill), practicals on
       window.lightSwitch.roomLights.forEach((l) => {
         if (l.light === sunLight) return;
-        l.current = 0;
-        l.target = 0;
-        l.light.intensity = 0;
+        l.current = l.moodyIntensity;
+        l.target = l.moodyIntensity;
+        l.light.intensity = l.moodyIntensity;
       });
       window.lightSwitch.practicalLights.forEach((l) => {
         l.current = l.onIntensity;
@@ -1527,12 +1527,12 @@ gltfLoader.load(
           console.log("Light mode: NIGHT");
         } else if (ls.mode === "night") {
           // Night → Moody: sun cycle resumes (harsh directional shadows),
-          // all other room lights stay off, practicals on, envMap stays low
+          // room lights off except ceiling fill, practicals on, envMap stays low
           ls.mode = "moody";
           ls.on = false;
           sunCycle.override = false; // sun cycle drives sunLight directly
           ls.roomLights.forEach((l) => {
-            l.target = 0;
+            l.target = l.moodyIntensity;
           });
           ls.practicalLights.forEach((l) => {
             l.target = l.onIntensity;
