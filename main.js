@@ -931,7 +931,7 @@ gltfLoader.load(
     });
 
     // Load separate cactus model
-    gltfLoader.load("/models/cactus.gltf", (cactusGltf) => {
+    gltfLoader.load("/models/cactus.glb", (cactusGltf) => {
       const cactusModel = cactusGltf.scene;
 
       // Match the main model rotation
@@ -1301,7 +1301,7 @@ gltfLoader.load(
     });
 
     // ============ LOAD BRUNSON DOLL MODEL ============
-    gltfLoader.load("/models/BRUNSON DOLL/BRUNSON DOLL.gltf", (dollGltf) => {
+    gltfLoader.load("/models/BRUNSON DOLL/BRUNSON DOLL.glb", (dollGltf) => {
       const dollModel = dollGltf.scene;
       dollModel.rotation.y = -1.1;
 
@@ -1331,7 +1331,7 @@ gltfLoader.load(
     });
 
     // ============ LOAD DJ DECK MODEL ============
-    gltfLoader.load("/models/DJ DECK/DJ DECK.gltf", (deckGltf) => {
+    gltfLoader.load("/models/DJ DECK/DJ DECK.glb", (deckGltf) => {
       const deckModel = deckGltf.scene;
       deckModel.rotation.y = -1.1;
 
@@ -1396,7 +1396,7 @@ gltfLoader.load(
     }
 
     // ============ LOAD SCONCE MODEL ============
-    gltfLoader.load("/models/sconce/sconce.gltf", (sconceGltf) => {
+    gltfLoader.load("/models/sconce/sconce.glb", (sconceGltf) => {
       const sconceModel = sconceGltf.scene;
       sconceModel.rotation.y = -1.1;
 
@@ -1418,7 +1418,7 @@ gltfLoader.load(
     });
 
     // ============ LOAD 3D HAND CURSOR ============
-    gltfLoader.load("/AND SON HAND/AND SON HAND.gltf", (handGltf) => {
+    gltfLoader.load("/AND SON HAND/AND SON HAND.glb", (handGltf) => {
       const handScene = handGltf.scene;
 
       // Center the geometry — model verts are offset from origin
