@@ -267,6 +267,11 @@ const cameraLookCenter = new THREE.Vector3();
 const cameraLookCurrent = new THREE.Vector3();
 const cameraLookRange = { x: 2, y: 1 };
 
+// 3D Hand Cursor
+let handCursor = null;
+let handCursorVisible = true;
+const handCursorRawMouse = { x: 0, y: 0 }; // unlerped NDC coords for the hand
+
 // Raycaster for DJ booth hover detection
 
 // ============ CLICK-TO-FOCUS CAMERA SYSTEM ============
@@ -306,12 +311,36 @@ const hotspots = []; // populated after model loads
 const mediaPlayer = {
   el: document.getElementById("media-player"),
   playlist: [
-    { title: "IS MY MIC ON", artist: "LOU PHELPS", src: "/audio/Is My Mic On - Lou Phelps.mp3" },
-    { title: "4 MY CHILDREN", artist: "LOU PHELPS", src: "/audio/Lou Phelps 4 My Children.mp3" },
-    { title: "AFTER I", artist: "LOU PHELPS FT GOLDLINK", src: "/audio/Lou Phelps After I Ft Goldlink.mp3" },
-    { title: "JUNGLE", artist: "LOU PHELPS", src: "/audio/Lou Phelps JUNGLE LDMIX3MASTER2.mp3" },
-    { title: "UNDER MY SKIN", artist: "LOU PHELPS FT NONO BLACK", src: "/audio/Lou Phelps Under My Skin Ft Nono Black.mp3" },
-    { title: "TOUTES LES NANAS", artist: "LOU PHELPS", src: "/audio/Lou Phelps - Toutes les nanas (Interlude) - LDMIX5MASTER1.mp3" },
+    {
+      title: "IS MY MIC ON",
+      artist: "LOU PHELPS",
+      src: "/audio/Is My Mic On - Lou Phelps.mp3",
+    },
+    {
+      title: "4 MY CHILDREN",
+      artist: "LOU PHELPS",
+      src: "/audio/Lou Phelps 4 My Children.mp3",
+    },
+    {
+      title: "AFTER I",
+      artist: "LOU PHELPS FT GOLDLINK",
+      src: "/audio/Lou Phelps After I Ft Goldlink.mp3",
+    },
+    {
+      title: "JUNGLE",
+      artist: "LOU PHELPS",
+      src: "/audio/Lou Phelps JUNGLE LDMIX3MASTER2.mp3",
+    },
+    {
+      title: "UNDER MY SKIN",
+      artist: "LOU PHELPS FT NONO BLACK",
+      src: "/audio/Lou Phelps Under My Skin Ft Nono Black.mp3",
+    },
+    {
+      title: "TOUTES LES NANAS",
+      artist: "LOU PHELPS",
+      src: "/audio/Lou Phelps - Toutes les nanas (Interlude) - LDMIX5MASTER1.mp3",
+    },
   ],
   currentIndex: 0,
   audio: new Audio(),
@@ -581,14 +610,20 @@ if (knobEl) {
     e.preventDefault();
     onDragStart(e.clientX, e.clientY);
   });
-  document.addEventListener("mousemove", (e) => onDragMove(e.clientX, e.clientY));
+  document.addEventListener("mousemove", (e) =>
+    onDragMove(e.clientX, e.clientY),
+  );
   document.addEventListener("mouseup", onDragEnd);
 
   // Touch events
-  knobEl.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    onDragStart(e.touches[0].clientX, e.touches[0].clientY);
-  }, { passive: false });
+  knobEl.addEventListener(
+    "touchstart",
+    (e) => {
+      e.preventDefault();
+      onDragStart(e.touches[0].clientX, e.touches[0].clientY);
+    },
+    { passive: false },
+  );
   document.addEventListener("touchmove", (e) => {
     if (dragging) onDragMove(e.touches[0].clientX, e.touches[0].clientY);
   });
@@ -775,6 +810,19 @@ function finishFocusReturn() {
 window.addEventListener("mousemove", (e) => {
   mouseTarget.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouseTarget.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  // Raw (unlerped) for hand cursor
+  handCursorRawMouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  handCursorRawMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+
+// Hide hand cursor when mouse leaves the window
+window.addEventListener("mouseleave", () => {
+  handCursorVisible = false;
+  if (handCursor) handCursor.visible = false;
+});
+window.addEventListener("mouseenter", () => {
+  handCursorVisible = true;
+  if (handCursor) handCursor.visible = true;
 });
 
 // OrbitControls setup
@@ -1077,6 +1125,7 @@ gltfLoader.load(
       // Bring logo forward off the wall (local Z) and rotate around Z axis
       logoMesh.translateZ(-1.0);
       logoMesh.translateY(2.8);
+      logoMesh.translateX(0.8);
       logoMesh.scale.set(14.8, 14.8, 14.8);
       window.logoMesh = logoMesh;
     }
@@ -1416,6 +1465,38 @@ gltfLoader.load(
       );
     });
 
+    // ============ LOAD 3D HAND CURSOR ============
+    gltfLoader.load("/AND SON HAND/AND SON HAND.gltf", (handGltf) => {
+      const handScene = handGltf.scene;
+
+      // Center the geometry — model verts are offset from origin
+      const bbox = new THREE.Box3().setFromObject(handScene);
+      const center = bbox.getCenter(new THREE.Vector3());
+      handScene.position.sub(center); // shift so geometry is at origin
+
+      // Wrap in a group so .position controls the cursor location
+      handCursor = new THREE.Group();
+      handCursor.add(handScene);
+      handCursor.renderOrder = 9999;
+
+      // Disable depth test so hand always renders on top
+      handCursor.traverse((child) => {
+        if (child.isMesh) {
+          child.renderOrder = 9999;
+          child.material.depthTest = false;
+          child.material.depthWrite = false;
+          // Make invisible to raycasters
+          child.raycast = () => {};
+        }
+      });
+
+      // Make the group itself invisible to raycasters
+      handCursor.raycast = () => {};
+
+      scene.add(handCursor);
+      console.log("Hand cursor loaded, centered from:", center);
+    });
+
     console.log("=== ALL MESHES IN MODEL ===");
     console.log("Total count:", Object.keys(meshes).length);
     console.log("Names:", Object.keys(meshes));
@@ -1553,12 +1634,48 @@ gltfLoader.load(
       on: false,
       mode: "moody", // "day" | "night" | "moody"
       roomLights: [
-        { light: ambientLight, onIntensity: 0.15, moodyIntensity: 0, current: 0.15, target: 0.15 },
-        { light: sunLight, onIntensity: 6, moodyIntensity: 0, current: 6, target: 6 },
-        { light: hemiLight, onIntensity: 0.6, moodyIntensity: 0, current: 0.6, target: 0.6 },
-        { light: fillLeft, onIntensity: 4, moodyIntensity: 0, current: 4, target: 4 },
-        { light: fillRight, onIntensity: 4, moodyIntensity: 0, current: 4, target: 4 },
-        { light: fillCeiling, onIntensity: 3, moodyIntensity: 1.5, current: 3, target: 3 },
+        {
+          light: ambientLight,
+          onIntensity: 0.15,
+          moodyIntensity: 0,
+          current: 0.15,
+          target: 0.15,
+        },
+        {
+          light: sunLight,
+          onIntensity: 6,
+          moodyIntensity: 0,
+          current: 6,
+          target: 6,
+        },
+        {
+          light: hemiLight,
+          onIntensity: 0.6,
+          moodyIntensity: 0,
+          current: 0.6,
+          target: 0.6,
+        },
+        {
+          light: fillLeft,
+          onIntensity: 4,
+          moodyIntensity: 0,
+          current: 4,
+          target: 4,
+        },
+        {
+          light: fillRight,
+          onIntensity: 4,
+          moodyIntensity: 0,
+          current: 4,
+          target: 4,
+        },
+        {
+          light: fillCeiling,
+          onIntensity: 3,
+          moodyIntensity: 1.5,
+          current: 3,
+          target: 3,
+        },
       ],
       practicalLights: [
         // These turn ON when room lights are OFF
@@ -2004,6 +2121,29 @@ function animate() {
   // Slowly rotate logo around Z axis
   if (window.logoMesh) {
     window.logoMesh.rotation.z += delta * 0.3; // ~17° per second
+  }
+
+  // Update 3D hand cursor position (lerp slightly behind mouse)
+  if (handCursor && handCursorVisible) {
+    const handVec = new THREE.Vector3(
+      handCursorRawMouse.x,
+      handCursorRawMouse.y,
+      0.5,
+    );
+    handVec.unproject(camera);
+    const dir = handVec.sub(camera.position).normalize();
+    const dist = 0.5;
+    const targetPos = camera.position.clone().add(dir.multiplyScalar(dist));
+    // Smooth lerp — trails just slightly behind the mouse
+    const lerpFactor = 1 - Math.pow(0.001, delta); // ~0.85-0.92 per frame at 60fps
+    handCursor.position.lerp(targetPos, lerpFactor);
+    handCursor.scale.setScalar(0.15);
+    // Face the camera, then tilt so the index finger points "down-left" like a pointer
+    handCursor.quaternion.copy(camera.quaternion);
+    const tilt = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(-0.1, Math.PI * -0.2, Math.PI * -0.1),
+    );
+    handCursor.quaternion.multiply(tilt);
   }
 
   renderer.render(scene, camera);

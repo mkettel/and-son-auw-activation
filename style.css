@@ -17,12 +17,14 @@ body {
   height: 100%;
   overflow: hidden;
   background: #1a1a1a;
+  cursor: none;
 }
 
 #canvas {
   display: block;
   width: 100%;
   height: 100%;
+  cursor: none;
 }
 
 #loading {
@@ -80,6 +82,19 @@ body {
   margin-top: 0.75rem;
 }
 
+/* Hide cursor on all interactive UI overlays — 3D hand replaces it */
+.hotspot,
+.mp-play-btn,
+.mp-ctrl-btn,
+.mp-preset-btn,
+.mp-source-btn,
+.mp-knob,
+.focus-close-btn,
+#legend-toggle,
+.sim-btn {
+  cursor: none;
+}
+
 /* Legend */
 #legend-toggle {
   position: fixed;
@@ -98,7 +113,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: none;
   z-index: 50;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -218,7 +233,7 @@ body {
   height: 12px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
+  cursor: none;
 }
 
 .sim-btn {
@@ -229,7 +244,7 @@ body {
   color: rgba(255, 255, 255, 0.5);
   font-family: inherit;
   font-size: 10px;
-  cursor: pointer;
+  cursor: none;
   transition:
     background 0.15s,
     color 0.15s;
@@ -268,7 +283,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: none;
   z-index: 60;
   transition:
     background 0.2s,
@@ -297,7 +312,7 @@ body {
   align-items: center;
   gap: 8px;
   pointer-events: auto;
-  cursor: pointer;
+  cursor: none;
   opacity: 0;
   transition: opacity 0.6s ease;
 }
@@ -452,7 +467,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.5px;
   padding: 6px 12px;
-  cursor: pointer;
+  cursor: none;
   transition: background 0.2s;
 }
 
@@ -478,11 +493,11 @@ body {
     0 2px 8px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   position: relative;
-  cursor: grab;
+  cursor: none;
 }
 
 .mp-knob:active {
-  cursor: grabbing;
+  cursor: none;
 }
 
 .mp-knob-indicator {
@@ -630,7 +645,7 @@ body.knob-dragging {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: none;
   transition:
     background 0.15s,
     color 0.15s;
@@ -662,7 +677,7 @@ body.knob-dragging {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   transition:
     transform 0.1s,
@@ -699,7 +714,7 @@ body.knob-dragging {
     sans-serif;
   font-size: 10px;
   font-weight: 600;
-  cursor: pointer;
+  cursor: none;
   transition:
     background 0.15s,
     color 0.15s;
