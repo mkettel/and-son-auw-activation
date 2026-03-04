@@ -266,11 +266,6 @@ const cameraLookCenter = new THREE.Vector3();
 const cameraLookCurrent = new THREE.Vector3();
 const cameraLookRange = { x: 2, y: 1 };
 
-// 3D Hand Cursor
-let handCursor = null;
-let handCursorVisible = true;
-const handCursorRawMouse = { x: 0, y: 0 }; // unlerped NDC coords for the hand
-
 // Raycaster for DJ booth hover detection
 
 // ============ CLICK-TO-FOCUS CAMERA SYSTEM ============
@@ -809,19 +804,6 @@ function finishFocusReturn() {
 window.addEventListener("mousemove", (e) => {
   mouseTarget.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouseTarget.y = -(e.clientY / window.innerHeight) * 2 + 1;
-  // Raw (unlerped) for hand cursor
-  handCursorRawMouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-  handCursorRawMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-});
-
-// Hide hand cursor when mouse leaves the window
-window.addEventListener("mouseleave", () => {
-  handCursorVisible = false;
-  if (handCursor) handCursor.visible = false;
-});
-window.addEventListener("mouseenter", () => {
-  handCursorVisible = true;
-  if (handCursor) handCursor.visible = true;
 });
 
 // OrbitControls setup
@@ -1417,37 +1399,6 @@ gltfLoader.load(
       );
     });
 
-    // ============ LOAD 3D HAND CURSOR ============
-    gltfLoader.load("/AND SON HAND/AND SON HAND.glb", (handGltf) => {
-      const handScene = handGltf.scene;
-
-      // Center the geometry — model verts are offset from origin
-      const bbox = new THREE.Box3().setFromObject(handScene);
-      const center = bbox.getCenter(new THREE.Vector3());
-      handScene.position.sub(center); // shift so geometry is at origin
-
-      // Wrap in a group so .position controls the cursor location
-      handCursor = new THREE.Group();
-      handCursor.add(handScene);
-      handCursor.renderOrder = 9999;
-
-      // Disable depth test so hand always renders on top
-      handCursor.traverse((child) => {
-        if (child.isMesh) {
-          child.renderOrder = 9999;
-          child.material.depthTest = false;
-          child.material.depthWrite = false;
-          // Make invisible to raycasters
-          child.raycast = () => {};
-        }
-      });
-
-      // Make the group itself invisible to raycasters
-      handCursor.raycast = () => {};
-
-      scene.add(handCursor);
-      console.log("Hand cursor loaded, centered from:", center);
-    });
 
     console.log("=== ALL MESHES IN MODEL ===");
     console.log("Total count:", Object.keys(meshes).length);
@@ -1871,28 +1822,6 @@ function animate() {
     window.logoMesh.rotation.z += delta * 0.3; // ~17° per second
   }
 
-  // Update 3D hand cursor position (lerp slightly behind mouse)
-  if (handCursor && handCursorVisible) {
-    const handVec = new THREE.Vector3(
-      handCursorRawMouse.x,
-      handCursorRawMouse.y,
-      0.5,
-    );
-    handVec.unproject(camera);
-    const dir = handVec.sub(camera.position).normalize();
-    const dist = 0.5;
-    const targetPos = camera.position.clone().add(dir.multiplyScalar(dist));
-    // Smooth lerp — trails just slightly behind the mouse
-    const lerpFactor = 1 - Math.pow(0.001, delta); // ~0.85-0.92 per frame at 60fps
-    handCursor.position.lerp(targetPos, lerpFactor);
-    handCursor.scale.setScalar(0.15);
-    // Face the camera, then tilt so the index finger points "down-left" like a pointer
-    handCursor.quaternion.copy(camera.quaternion);
-    const tilt = new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(-0.1, Math.PI * -0.2, Math.PI * -0.1),
-    );
-    handCursor.quaternion.multiply(tilt);
-  }
 
   renderer.render(scene, camera);
   css2dRenderer.render(scene, camera);
