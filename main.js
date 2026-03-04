@@ -4,7 +4,6 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
 import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
-import { RectAreaLightHelper } from "three/addons/helpers/RectAreaLightHelper.js";
 import {
   CSS2DRenderer,
   CSS2DObject,
@@ -833,24 +832,6 @@ controls.minDistance = 1;
 controls.maxDistance = 100;
 controls.enabled = false; // Start with mouse mode
 
-// Toggle camera mode with 'C' key (blocked during focus)
-window.addEventListener("keydown", (e) => {
-  if (e.key === "c" || e.key === "C") {
-    if (cameraFocus.active || cameraFocus.transitioning) return;
-
-    cameraConfig.mode = cameraConfig.mode === "mouse" ? "orbit" : "mouse";
-    controls.enabled = cameraConfig.mode === "orbit";
-
-    // Reset orbit controls target when switching to orbit mode
-    if (cameraConfig.mode === "orbit" && cameraLookCenter.length() > 0) {
-      controls.target.copy(cameraLookCenter);
-      controls.update();
-    }
-
-    console.log("Camera mode:", cameraConfig.mode);
-  }
-});
-
 // Escape key exits focus mode
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && (cameraFocus.active || cameraFocus.transitioning)) {
@@ -1015,35 +996,6 @@ gltfLoader.load(
       oldRoomMeshes: oldRoomMeshes,
       newRoomModel: null, // Set once loaded
     };
-
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "r" || e.key === "R") {
-        const toggle = window.roomToggle;
-        toggle.useNewRoom = !toggle.useNewRoom;
-
-        // Show/hide old room meshes
-        toggle.oldRoomMeshes.forEach((mesh) => {
-          mesh.visible = !toggle.useNewRoom;
-        });
-
-        // Show/hide new room model
-        if (toggle.newRoomModel) {
-          toggle.newRoomModel.visible = toggle.useNewRoom;
-        }
-
-        // Update legend status
-        const statusEl = document.getElementById("room-status");
-        if (statusEl)
-          statusEl.textContent = toggle.useNewRoom
-            ? "new (textured)"
-            : "old (flat colors)";
-
-        console.log(
-          "Room mode:",
-          toggle.useNewRoom ? "NEW (textured)" : "OLD (flat colors)",
-        );
-      }
-    });
 
     // Load new room model (textured walls + floor with cutout window)
     gltfLoader.load("/models/room/room.gltf", (roomGltf) => {
@@ -1730,116 +1682,7 @@ gltfLoader.load(
       });
     }
 
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "l" || e.key === "L") {
-        const ls = window.lightSwitch;
-        if (ls.mode === "day") {
-          // Day → Night: room lights off, practicals on, smooth lerp
-          ls.mode = "night";
-          ls.on = false;
-          sunCycle.override = true;
-          ls.roomLights.forEach((l) => {
-            l.target = 0;
-          });
-          ls.practicalLights.forEach((l) => {
-            l.target = l.onIntensity;
-          });
-          ls.materials.forEach((m) => {
-            m.target = m.offIntensity;
-          });
-          console.log("Light mode: NIGHT");
-        } else if (ls.mode === "night") {
-          // Night → Moody: sun cycle resumes (harsh directional shadows),
-          // room lights off except ceiling fill, practicals on, envMap stays low
-          ls.mode = "moody";
-          ls.on = false;
-          sunCycle.override = false; // sun cycle drives sunLight directly
-          ls.roomLights.forEach((l) => {
-            l.target = l.moodyIntensity;
-          });
-          ls.practicalLights.forEach((l) => {
-            l.target = l.onIntensity;
-          });
-          ls.materials.forEach((m) => {
-            m.target = m.offIntensity;
-          });
-          console.log("Light mode: MOODY");
-        } else {
-          // Moody → Day: everything back to normal
-          ls.mode = "day";
-          ls.on = true;
-          sunCycle.override = false;
-          ls.roomLights.forEach((l) => {
-            l.target = l.onIntensity;
-          });
-          ls.practicalLights.forEach((l) => {
-            l.target = 0;
-          });
-          ls.materials.forEach((m) => {
-            m.target = m.onIntensity;
-          });
-          console.log("Light mode: DAY");
-        }
-      }
-    });
-
     console.log("Lighting setup complete");
-
-    // ============ LIGHT HELPERS (for positioning) ============
-    // Press 'H' to toggle helpers
-    const helpers = [];
-
-    const lampPointHelper = new THREE.PointLightHelper(lampPointLight, 0.3);
-    scene.add(lampPointHelper);
-    helpers.push(lampPointHelper);
-
-    const lampHelperUp = new THREE.SpotLightHelper(lampLightUp);
-    scene.add(lampHelperUp);
-    helpers.push(lampHelperUp);
-
-    const lampHelperDown = new THREE.SpotLightHelper(lampLightDown);
-    scene.add(lampHelperDown);
-    helpers.push(lampHelperDown);
-
-    const sconceLeftHelper = new THREE.PointLightHelper(sconceLeft, 0.3);
-    scene.add(sconceLeftHelper);
-    helpers.push(sconceLeftHelper);
-
-    const sconceRightHelper = new THREE.PointLightHelper(sconceRight, 0.3);
-    scene.add(sconceRightHelper);
-    helpers.push(sconceRightHelper);
-
-    // const areaLeftHelper = new RectAreaLightHelper(areaLeft);
-    // scene.add(areaLeftHelper);
-    // helpers.push(areaLeftHelper);
-
-    // const areaRightHelper = new RectAreaLightHelper(areaRight);
-    // scene.add(areaRightHelper);
-    // helpers.push(areaRightHelper);
-
-    // const areaTopHelper = new RectAreaLightHelper(areaTop);
-    // scene.add(areaTopHelper);
-    // helpers.push(areaTopHelper);
-
-    const sunHelper = new THREE.DirectionalLightHelper(sunLight, 2);
-    scene.add(sunHelper);
-    helpers.push(sunHelper);
-
-    // Shadow camera helper (shows shadow frustum bounds)
-    const shadowCameraHelper = new THREE.CameraHelper(sunLight.shadow.camera);
-    scene.add(shadowCameraHelper);
-    helpers.push(shadowCameraHelper);
-
-    // Hide helpers by default
-    helpers.forEach((helper) => (helper.visible = false));
-
-    // Toggle helpers with 'H' key
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "h" || e.key === "H") {
-        helpers.forEach((helper) => (helper.visible = !helper.visible));
-        console.log("Helpers:", helpers[0].visible ? "ON" : "OFF");
-      }
-    });
 
     // Hide loading screen
     loadingElement.classList.add("hidden");
@@ -1867,81 +1710,6 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   css2dRenderer.setSize(window.innerWidth, window.innerHeight);
 });
-
-// ============ TIME SIM CONTROLS ============
-function activateSim(speed) {
-  const date = new Date();
-  if (!sunCycle.sim) {
-    // Starting sim — seed from current real time
-    sunCycle.simHour =
-      date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
-  }
-  sunCycle.sim = true;
-  sunCycle.simSpeed = speed;
-  sunCycle.override = false; // clear L-key override so sun cycle drives lights
-  if (window.lightSwitch) window.lightSwitch.mode = "day";
-  const slider = document.getElementById("time-slider");
-  if (slider) slider.value = sunCycle.simHour;
-  updateSimButtons();
-}
-
-function deactivateSim() {
-  sunCycle.sim = false;
-  sunCycle.simSpeed = 0;
-  sunCycle.override = false;
-  updateSimButtons();
-}
-
-function updateSimButtons() {
-  document
-    .querySelectorAll(".sim-btn")
-    .forEach((btn) => btn.classList.remove("active"));
-  if (!sunCycle.sim) {
-    const resetBtn = document.getElementById("sim-reset");
-    if (resetBtn) resetBtn.classList.add("active");
-    return;
-  }
-  const speedMap = {
-    0: "sim-speed-0",
-    1: "sim-speed-1",
-    6: "sim-speed-6",
-    24: "sim-speed-24",
-  };
-  const activeId = speedMap[sunCycle.simSpeed];
-  if (activeId) {
-    const btn = document.getElementById(activeId);
-    if (btn) btn.classList.add("active");
-  }
-}
-
-// Slider: dragging sets sim hour directly
-const timeSlider = document.getElementById("time-slider");
-if (timeSlider) {
-  timeSlider.addEventListener("input", (e) => {
-    if (!sunCycle.sim) activateSim(0); // activate sim in paused mode on first drag
-    sunCycle.simHour = parseFloat(e.target.value);
-  });
-}
-
-// Speed buttons
-document
-  .getElementById("sim-speed-0")
-  ?.addEventListener("click", () => activateSim(0));
-document
-  .getElementById("sim-speed-1")
-  ?.addEventListener("click", () => activateSim(1));
-document
-  .getElementById("sim-speed-6")
-  ?.addEventListener("click", () => activateSim(6));
-document
-  .getElementById("sim-speed-24")
-  ?.addEventListener("click", () => activateSim(24));
-document
-  .getElementById("sim-reset")
-  ?.addEventListener("click", () => deactivateSim());
-
-// Mark "Live" as active by default
-updateSimButtons();
 
 // Animation loop with deltaTime for consistent speed
 const clock = new THREE.Clock();
@@ -2002,15 +1770,6 @@ function animate() {
   }
 
   // ============ SUN CYCLE UPDATE ============
-  // Advance sim time each frame when speed > 0
-  if (sunCycle.sim && sunCycle.simSpeed > 0) {
-    sunCycle.simHour += (delta * sunCycle.simSpeed) / 60; // simSpeed = hours per real-minute, delta in seconds
-    if (sunCycle.simHour >= 24) sunCycle.simHour -= 24;
-    if (sunCycle.simHour < 0) sunCycle.simHour += 24;
-    // Update slider to match
-    const slider = document.getElementById("time-slider");
-    if (slider) slider.value = sunCycle.simHour;
-  }
 
   if (window.lightSwitch && window.sunLight) {
     const now = performance.now();
@@ -2064,17 +1823,6 @@ function animate() {
         console.log("Sun cycle auto-toggle:", on ? "DAY" : "NIGHT");
       }
 
-      // Update time display in legend
-      const timeEl = document.getElementById("time-status");
-      if (timeEl) {
-        const displayHour = sunCycle.sim ? sunCycle.simHour : currentHour;
-        const h = Math.floor(displayHour);
-        const m = Math.floor((displayHour - h) * 60);
-        const ampm = h >= 12 ? "PM" : "AM";
-        const h12 = h % 12 || 12;
-        const suffix = sunCycle.sim ? " (sim)" : "";
-        timeEl.textContent = `${h12}:${m.toString().padStart(2, "0")} ${ampm}${suffix}`;
-      }
     }
   }
 
