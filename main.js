@@ -1057,8 +1057,8 @@ gltfLoader.load(
     }
     if (logoMesh) {
       // Bring logo forward off the wall (local Z) and rotate around Z axis
-      logoMesh.translateZ(-1.0);
-      logoMesh.translateY(2.8);
+      logoMesh.translateZ(1.8);
+      logoMesh.translateY(4.5);
       logoMesh.translateX(0.8);
       logoMesh.scale.set(14.8, 14.8, 14.8);
       window.logoMesh = logoMesh;
@@ -1398,7 +1398,6 @@ gltfLoader.load(
         "Sconce model loaded. Adjust with: sconceModel.position.set(x, y, z)",
       );
     });
-
 
     console.log("=== ALL MESHES IN MODEL ===");
     console.log("Total count:", Object.keys(meshes).length);
@@ -1773,7 +1772,6 @@ function animate() {
         });
         console.log("Sun cycle auto-toggle:", on ? "DAY" : "NIGHT");
       }
-
     }
   }
 
@@ -1821,7 +1819,6 @@ function animate() {
   if (window.logoMesh) {
     window.logoMesh.rotation.z += delta * 0.3; // ~17° per second
   }
-
 
   renderer.render(scene, camera);
   css2dRenderer.render(scene, camera);
