@@ -700,7 +700,9 @@ function computeFocusCamera(mesh, config) {
   // Auto-compute: perpendicular to mesh face at viewDistance
   const box = new THREE.Box3().setFromObject(mesh);
   const center = box.getCenter(new THREE.Vector3());
-  const normal = getMeshWorldNormal(mesh);
+  const normal = config.worldNormal
+    ? config.worldNormal.clone()
+    : getMeshWorldNormal(mesh);
   const dist = config.viewDistance || 2.0;
 
   const position = center.clone().add(normal.clone().multiplyScalar(dist));
@@ -1155,6 +1157,16 @@ gltfLoader.load(
     for (const [meshName, config] of Object.entries(focusTargets)) {
       const mesh = model.getObjectByName(meshName);
       if (mesh) {
+        // For frame meshes, precompute the outward wall normal from the model's rotation
+        // (averaged vertex normals can point the wrong way after model re-export/compression)
+        if (meshName.startsWith("FRAME")) {
+          const wallNormal = new THREE.Vector3(0, 0, -1);
+          wallNormal.applyQuaternion(
+            new THREE.Quaternion().setFromEuler(model.rotation),
+          );
+          config.worldNormal = wallNormal;
+        }
+
         focusMeshMap.set(mesh, config);
         console.log(`Focus target resolved: ${meshName}`);
 
