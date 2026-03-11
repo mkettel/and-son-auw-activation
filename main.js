@@ -1057,7 +1057,7 @@ gltfLoader.load(
     }
     if (logoMesh) {
       // Bring logo forward off the wall (local Z) and rotate around Z axis
-      logoMesh.translateZ(1.9);
+      logoMesh.translateZ(1.6);
       logoMesh.translateY(4.5);
       logoMesh.translateX(0.8);
       logoMesh.scale.set(14.8, 14.8, 14.8);
