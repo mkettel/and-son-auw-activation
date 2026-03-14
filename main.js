@@ -8,7 +8,6 @@ import {
   CSS2DRenderer,
   CSS2DObject,
 } from "three/addons/renderers/CSS2DRenderer.js";
-import Stats from "three/addons/libs/stats.module.js";
 
 // ============ PCSS SOFT SHADOWS (like Drei's SoftShadows) ============
 const pcssConfig = {
@@ -205,9 +204,6 @@ THREE.ShaderChunk.shadowmap_pars_fragment =
 // Initialize RectAreaLight support
 RectAreaLightUniformsLib.init();
 
-// Performance monitor
-const stats = new Stats();
-document.body.appendChild(stats.dom);
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -1680,7 +1676,6 @@ function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
 
-  stats.update();
 
   // Camera mode handling (three-branch priority)
   if (cameraFocus.active || cameraFocus.transitioning) {
