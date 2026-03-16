@@ -204,7 +204,6 @@ THREE.ShaderChunk.shadowmap_pars_fragment =
 // Initialize RectAreaLight support
 RectAreaLightUniformsLib.init();
 
-
 // Scene setup
 const scene = new THREE.Scene();
 
@@ -902,11 +901,12 @@ gltfLoader.load(
     // Once we pick a direction, remove the unused version and this toggle code.
     // ================================================================
 
-    // Collect old room meshes for toggle (keep visible until new room loads)
+    // Collect old room meshes and hide them immediately (new room.gltf replaces them)
     const oldRoomMeshes = [];
     model.traverse((child) => {
       if (child.name.toLowerCase().includes("room")) {
         oldRoomMeshes.push(child);
+        child.visible = false;
       }
     });
 
@@ -984,6 +984,27 @@ gltfLoader.load(
       // Match the main model rotation
       roomModel.rotation.y = -1.1;
 
+      // Room position offset — tweak these to slide the room
+      roomModel.position.set(4.536, 0, 8.912);
+      window.roomOffset = { x: 4.536, y: 0, z: 8.912 };
+      window.setRoomPos = (x, y, z) => {
+        roomModel.position.set(x, y, z);
+        window.roomOffset = { x, y, z };
+        // console.log(`Room position: (${x}, ${y}, ${z})`);
+      };
+
+      // Move room along its LOCAL axes (accounts for rotation)
+      // forward/back = local Z, left/right = local X, up/down = local Y
+      window.slideRoom = (forward = 9, right = 0, up = 0) => {
+        const dir = new THREE.Vector3(right, up, forward);
+        dir.applyQuaternion(roomModel.quaternion);
+        roomModel.position.add(dir);
+        const p = roomModel.position;
+        console.log(
+          `Room world position: (${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)})`,
+        );
+      };
+
       // Room shell receives shadows but doesn't cast them
       // (prevents the ceiling edge from casting a hard line on the back wall)
       roomModel.traverse((child) => {
@@ -1015,6 +1036,9 @@ gltfLoader.load(
 
       window.roomModel = roomModel;
       window.roomToggle.newRoomModel = roomModel;
+
+      // Everything is ready — hide loading screen
+      loadingElement.classList.add("hidden");
 
       // Add room materials to light switch system if already initialized
       if (window.lightSwitch) {
@@ -1642,8 +1666,7 @@ gltfLoader.load(
 
     console.log("Lighting setup complete");
 
-    // Hide loading screen
-    loadingElement.classList.add("hidden");
+    // Loading screen is hidden once the new room model finishes loading (see room load callback)
 
     console.log("Model loaded successfully");
   },
@@ -1675,7 +1698,6 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
-
 
   // Camera mode handling (three-branch priority)
   if (cameraFocus.active || cameraFocus.transitioning) {
