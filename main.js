@@ -978,7 +978,7 @@ gltfLoader.load(
     };
 
     // Load new room model (textured walls + floor with cutout window)
-    gltfLoader.load("/models/room/solo room/room.gltf", (roomGltf) => {
+    gltfLoader.load("/models/room/solo room/extended-room-v2.gltf", (roomGltf) => {
       const roomModel = roomGltf.scene;
 
       // Match the main model rotation
